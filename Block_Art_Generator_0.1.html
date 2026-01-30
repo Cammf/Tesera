@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tesera</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #0072CE;
+  --primary-hover: #005ea6;
+  --accent: #FFC325;
+  --accent-hover: #e6af1e;
+  --bg: #2d2d3a;
+  --bg-panel: #23232f;
+  --bg-input: #1e1e2a;
+  --text: #e8e8ec;
+  --text-sec: #9a9ab0;
+  --danger: #e74c3c;
+  --border: #444;
+  --grey-empty: #d0d0d0;
+}
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+  padding: 20px;
+}
+h1 { margin-bottom: 2px; font-size: 2rem; letter-spacing: 2px; color: var(--accent); }
+.subtitle { color: var(--text-sec); margin-bottom: 16px; font-size: 0.9rem; text-align: center; }
+.section { width: 100%; max-width: 1100px; margin-bottom: 18px; }
+
+/* Palette */
+.palette { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 6px; }
+.palette-swatch {
+  width: 44px; height: 44px; border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 0.55rem; font-weight: 700; color: #fff;
+  text-shadow: 0 0 3px rgba(0,0,0,0.8); border: 2px solid transparent; line-height: 1.2;
+}
+.palette-swatch .num { font-size: 0.75rem; }
+.legend { font-size: 0.75rem; color: var(--text-sec); text-align: center; margin-bottom: 10px; }
+
+/* Start choice */
+.start-choice { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+.choice-card {
+  background: var(--bg-panel); border: 2px solid var(--border); border-radius: 12px;
+  padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, transform 0.15s;
+  width: 320px; max-width: 100%;
+}
+.choice-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+.choice-card.active { border-color: var(--accent); }
+.choice-card h3 { color: var(--accent); margin-bottom: 8px; font-size: 1rem; }
+.choice-card p { color: var(--text-sec); font-size: 0.82rem; }
+
+/* Upload */
+.upload-area {
+  border: 2px dashed var(--border); border-radius: 12px; padding: 36px;
+  text-align: center; cursor: pointer; transition: border-color 0.3s; display: none;
+}
+.upload-area.active { display: block; }
+.upload-area:hover, .upload-area.dragover { border-color: var(--primary); }
+.upload-area input { display: none; }
+.upload-area p { font-size: 1rem; color: var(--text-sec); }
+
+/* Pattern selection */
+.pattern-area { display: none; text-align: center; }
+.pattern-area.active { display: block; }
+.pattern-controls { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
+
+/* Crop */
+.crop-section { display: none; text-align: center; }
+.crop-section.active { display: block; }
+.crop-container {
+  position: relative; display: inline-block; max-width: 100%; cursor: crosshair;
+  user-select: none; -webkit-user-select: none; overflow: hidden;
+}
+.crop-container img { display: block; max-width: 500px; max-height: 500px; }
+.crop-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+.crop-box {
+  position: absolute; border: 2px solid var(--accent);
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
+  cursor: move; pointer-events: all;
+}
+.crop-handle {
+  position: absolute; width: 14px; height: 14px; background: var(--accent);
+  border: 2px solid #fff; border-radius: 2px; pointer-events: all;
+}
+.crop-handle.tl { top: -7px; left: -7px; cursor: nw-resize; }
+.crop-handle.tr { top: -7px; right: -7px; cursor: ne-resize; }
+.crop-handle.bl { bottom: -7px; left: -7px; cursor: sw-resize; }
+.crop-handle.br { bottom: -7px; right: -7px; cursor: se-resize; }
+.crop-btn { margin-top: 12px; }
+
+/* Controls */
+.controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center; }
+button {
+  background: var(--primary); color: #fff; border: none;
+  padding: 9px 20px; border-radius: 8px; cursor: pointer;
+  font-size: 0.9rem; transition: background 0.2s;
+}
+button:hover { background: var(--primary-hover); }
+button:disabled { background: #444; cursor: not-allowed; }
+button.active { background: var(--danger); }
+button.accent { background: var(--accent); color: #222; }
+button.accent:hover { background: var(--accent-hover); }
+button.secondary { background: #3a3a4e; }
+button.secondary:hover { background: #4a4a5e; }
+button.secondary.active { background: var(--danger); }
+button.tool-btn { padding: 7px 14px; font-size: 0.8rem; border-radius: 6px; }
+button.tool-btn.active { background: var(--danger); }
+.option-group { display: flex; align-items: center; gap: 6px; }
+.option-group label { font-size: 0.85rem; color: var(--text-sec); }
+select {
+  background: var(--bg-input); color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 10px; font-size: 0.85rem;
+}
+
+/* Output */
+.output-wrap { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; align-items: flex-start; }
+.preview-container { text-align: center; }
+.preview-container h3 { margin-bottom: 6px; font-size: 0.9rem; color: var(--text-sec); }
+#croppedPreview { max-width: 200px; max-height: 200px; border-radius: 6px; display: none; }
+
+/* Editor panel */
+.editor-panel {
+  display: none; flex-direction: column; gap: 12px; align-items: center;
+  background: var(--bg-panel); border-radius: 10px; padding: 14px; min-width: 160px;
+}
+.editor-panel.active { display: flex; }
+.editor-panel h3 { font-size: 0.85rem; color: var(--text-sec); margin-bottom: 2px; }
+.editor-colour-list { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.editor-colour-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 6px; border-radius: 6px;
+  cursor: grab; user-select: none; transition: background 0.15s;
+}
+.editor-colour-row:hover { background: rgba(255,255,255,0.06); }
+.editor-colour-row.selected { outline: 2px solid var(--accent); outline-offset: -2px; }
+.editor-colour-block {
+  width: 28px; height: 28px; border-radius: 4px; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.15);
+}
+.editor-colour-info { display: flex; flex-direction: column; font-size: 0.72rem; line-height: 1.25; color: #ccc; }
+.editor-colour-info .colour-name { font-weight: 600; }
+.editor-colour-info .colour-count { color: var(--text-sec); }
+.count-ok { color: #6f6; }
+.count-over { color: #f66; font-weight: 700; }
+.count-under { color: var(--accent); }
+
+/* Grid */
+.grid-wrap { position: relative; display: inline-block; }
+#gridCanvas { border-radius: 4px; }
+.grid-wrap.edit-mode #gridCanvas { cursor: crosshair; }
+.editor-tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.tool-divider { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+.drag-ghost { position: fixed; pointer-events: none; z-index: 9999; border-radius: 4px; opacity: 0.85; border: 2px solid #fff; display: none; }
+.download-row { display: none; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.download-row.active { display: flex; }
+canvas.hidden { display: none; }
+.status { font-size: 0.8rem; color: var(--text-sec); min-height: 1.2em; text-align: center; }
+.block-counts { display: none; flex-wrap: wrap; gap: 4px; justify-content: center; }
+.block-counts.active { display: flex; }
+.count-chip { padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; color: #fff; text-shadow: 0 0 2px rgba(0,0,0,0.6); }
+</style>
+</head>
+<body>
+
+<h1>TESERA</h1>
+<p class="subtitle">Create block art — 400 coloured blocks on a 20×20 grid, 10 colours, 20 each</p>
+
+<div class="section">
+  <div class="palette" id="paletteDisplay"></div>
+  <p class="legend">Each colour used exactly 20 times — 400 blocks total</p>
+</div>
+
+<!-- Start choice -->
+<div class="section" id="startSection">
+  <div class="start-choice">
+    <div class="choice-card" id="choiceUpload">
+      <h3>Upload Image</h3>
+      <p>Upload a photo and convert it into block art using colour matching algorithms</p>
+    </div>
+    <div class="choice-card" id="choicePattern">
+      <h3>Generate Pattern</h3>
+      <p>Choose from geometric and mosaic patterns to generate block art designs</p>
+    </div>
+  </div>
+</div>
+
+<!-- Upload flow -->
+<div class="section">
+  <div class="upload-area" id="dropZone">
+    <p>Click or drag &amp; drop an image here</p>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+</div>
+
+<!-- Pattern flow -->
+<div class="section">
+  <div class="pattern-area" id="patternArea">
+    <div class="pattern-controls">
+      <div class="option-group">
+        <label for="patternSelect">Pattern:</label>
+        <select id="patternSelect">
+          <optgroup label="Geometric">
+            <option value="chevron">Chevron</option>
+            <option value="herringbone">Herringbone</option>
+            <option value="greekkey">Greek Key</option>
+            <option value="tessellation">Tessellation</option>
+          </optgroup>
+          <optgroup label="Mosaic">
+            <option value="greekmeander">Greek Meander</option>
+            <option value="tmeander">T-Meander</option>
+            <option value="guilloche">Guilloche</option>
+            <option value="solomonknot">Solomon Knot</option>
+          </optgroup>
+        </select>
+      </div>
+      <button id="generatePatternBtn" class="accent">Generate Pattern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Crop -->
+<div class="section crop-section" id="cropSection">
+  <h3 style="color:var(--text-sec);margin-bottom:8px;font-size:0.9rem;">Crop &amp; Scale — drag the box to select region</h3>
+  <div class="crop-container" id="cropContainer">
+    <img id="cropImg" alt="">
+    <div class="crop-overlay">
+      <div class="crop-box" id="cropBox">
+        <div class="crop-handle tl" data-handle="tl"></div>
+        <div class="crop-handle tr" data-handle="tr"></div>
+        <div class="crop-handle bl" data-handle="bl"></div>
+        <div class="crop-handle br" data-handle="br"></div>
+      </div>
+    </div>
+  </div>
+  <br>
+  <button class="crop-btn accent" id="confirmCrop">Confirm Crop</button>
+</div>
+
+<!-- Image controls -->
+<div class="section controls" id="controlsSection" style="display:none;">
+  <div class="option-group">
+    <label for="ditherMode">Mode:</label>
+    <select id="ditherMode">
+      <option value="floyd">Floyd-Steinberg</option>
+      <option value="atkinson">Atkinson</option>
+      <option value="ordered">Ordered (Bayer)</option>
+      <option value="nearest">Nearest Colour</option>
+      <option value="optimal">Optimal (K-means)</option>
+    </select>
+  </div>
+  <button id="generateBtn">Generate</button>
+  <button id="editModeBtn" class="secondary" style="display:none;">Edit Mode</button>
+</div>
+
+<!-- Shared edit mode button for pattern flow -->
+<div class="section controls" id="patternControlsSection" style="display:none;">
+  <button id="editModeBtnPattern" class="secondary">Edit Mode</button>
+</div>
+
+<p class="status" id="statusText"></p>
+
+<div class="section">
+  <div class="block-counts" id="blockCounts"></div>
+</div>
+
+<div class="section">
+  <div class="output-wrap" id="outputWrap">
+    <div class="preview-container" id="croppedPreviewContainer">
+      <h3>Cropped Original</h3>
+      <img id="croppedPreview" alt="cropped">
+    </div>
+    <div class="preview-container">
+      <h3 id="gridTitle">Block Art</h3>
+      <div class="grid-wrap" id="gridWrap">
+        <canvas id="gridCanvas" width="480" height="480"></canvas>
+      </div>
+      <div class="editor-tools" id="editorTools" style="display:none;margin-top:10px;">
+        <button class="tool-btn active" id="toolPaint" title="Paint blocks">&#x1f58c; Paint</button>
+        <button class="tool-btn" id="toolEraser" title="Erase blocks">&#x1f9f9; Eraser</button>
+        <div class="tool-divider"></div>
+        <div class="option-group">
+          <label for="brushSize" style="font-size:0.75rem;">Brush:</label>
+          <select id="brushSize">
+            <option value="1">1×1</option>
+            <option value="2">2×2</option>
+            <option value="3">3×3</option>
+          </select>
+        </div>
+        <div class="tool-divider"></div>
+        <button class="tool-btn" id="toolUndo" title="Undo">&#x21a9; Undo</button>
+        <button class="tool-btn" id="toolReset" title="Reset to generated">Reset</button>
+      </div>
+    </div>
+    <div class="editor-panel" id="editorPanel">
+      <h3>Colour Palette</h3>
+      <div class="editor-colour-list" id="editorColourList"></div>
+      <div style="font-size:0.65rem;color:#666;margin-top:4px;text-align:center;">
+        Click colour then paint on grid<br>or drag colour onto grid
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="download-row" id="downloadRow">
+    <button id="dlArt">Download Art PNG</button>
+    <button id="dlGuide">Download Numbered Guide</button>
+  </div>
+</div>
+
+<div class="drag-ghost" id="dragGhost"></div>
+<canvas id="workCanvas" class="hidden"></canvas>
+<canvas id="exportCanvas" class="hidden"></canvas>
+
+<script>
+(() => {
+  /* ============ CONSTANTS ============ */
+  const PALETTE = [
+    { name: 'Bright Red',       hex: '#C8102E', num: 1 },
+    { name: 'Dark Blue',        hex: '#00205B', num: 2 },
+    { name: 'Lime Green',       hex: '#84BD00', num: 3 },
+    { name: 'Sunflower Yellow', hex: '#FFC72C', num: 4 },
+    { name: 'Bright Yellow',    hex: '#FEDB00', num: 5 },
+    { name: 'Maroon',           hex: '#6F263D', num: 6 },
+    { name: 'Real Blue',        hex: '#0057B8', num: 7 },
+    { name: 'Cyan-blue',        hex: '#91C8E8', num: 8 },
+    { name: 'Magenta',          hex: '#6B2FA0', num: 9 },
+    { name: 'Red-orange',       hex: '#FC4C02', num: 10 },
+  ];
+  const GRID = 20, TOTAL = 400, PER_COLOUR = 20, BLOCK_PX = 26;
+  const EMPTY = -1;
+  const EMPTY_COLOUR = '#d0d0d0';
+
+  function hexToRgb(h) { const n = parseInt(h.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+  const palRgb = PALETTE.map(p => hexToRgb(p.hex));
+  function colourDist(a, b) {
+    const dr=a[0]-b[0], dg=a[1]-b[1], db=a[2]-b[2];
+    return (2+(a[0]+b[0])/512)*dr*dr + 4*dg*dg + (2+(767-a[0]-b[0])/512)*db*db;
+  }
+  function nearestIdx(rgb) { let b=0,bd=Infinity; for(let i=0;i<10;i++){const d=colourDist(rgb,palRgb[i]);if(d<bd){bd=d;b=i;}} return b; }
+  function luminance(r,g,b){ return 0.299*r+0.587*g+0.114*b; }
+  function clamp(v){ return Math.max(0,Math.min(255,v)); }
+
+  /* ============ PALETTE DISPLAY ============ */
+  const palDisp = document.getElementById('paletteDisplay');
+  PALETTE.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'palette-swatch'; d.style.background = p.hex;
+    d.innerHTML = `<span class="num">${p.num}</span><span>×20</span>`;
+    d.title = `${p.name} (${p.hex})`; palDisp.appendChild(d);
+  });
+
+  /* ============ ELEMENTS ============ */
+  const $ = id => document.getElementById(id);
+  const startSection = $('startSection');
+  const choiceUpload = $('choiceUpload');
+  const choicePattern = $('choicePattern');
+  const dropZone = $('dropZone');
+  const fileInput = $('fileInput');
+  const patternArea = $('patternArea');
+  const patternSelect = $('patternSelect');
+  const generatePatternBtn = $('generatePatternBtn');
+  const cropSection = $('cropSection');
+  const cropImg = $('cropImg');
+  const cropBox = $('cropBox');
+  const cropContainer = $('cropContainer');
+  const confirmCrop = $('confirmCrop');
+  const controlsSection = $('controlsSection');
+  const patternControlsSection = $('patternControlsSection');
+  const generateBtn = $('generateBtn');
+  const editModeBtn = $('editModeBtn');
+  const editModeBtnPattern = $('editModeBtnPattern');
+  const gridCanvas = $('gridCanvas');
+  const gridWrap = $('gridWrap');
+  const croppedPreview = $('croppedPreview');
+  const croppedPreviewContainer = $('croppedPreviewContainer');
+  const workCanvas = $('workCanvas');
+  const exportCanvas = $('exportCanvas');
+  const statusText = $('statusText');
+  const editorTools = $('editorTools');
+  const editorPanel = $('editorPanel');
+  const editorColourList = $('editorColourList');
+  const downloadRow = $('downloadRow');
+  const blockCountsEl = $('blockCounts');
+  const dragGhost = $('dragGhost');
+  const gridTitle = $('gridTitle');
+
+  let loadedImg = null;
+  let cropRect = { x:0, y:0, w:100, h:100 };
+  let imgDisplayW = 0, imgDisplayH = 0;
+  let originalPixels = null; // Uint8ClampedArray of 20x20 RGBA (for image mode)
+  let assigned = null; // Int32Array(400), values 0-9 or EMPTY
+  let generatedAssigned = null;
+  let saliencyMap = null;
+  let currentMode = null; // 'image' | 'pattern'
+
+  // Editor state
+  let editMode = false;
+  let activeTool = 'paint';
+  let selectedColourIdx = 0;
+  let brushSize = 1;
+  let undoStack = [];
+  let isMouseDown = false;
+
+  /* ============ START CHOICE ============ */
+  choiceUpload.addEventListener('click', () => {
+    currentMode = 'image';
+    choiceUpload.classList.add('active');
+    choicePattern.classList.remove('active');
+    dropZone.classList.add('active');
+    patternArea.classList.remove('active');
+    croppedPreviewContainer.style.display = '';
+  });
+  choicePattern.addEventListener('click', () => {
+    currentMode = 'pattern';
+    choicePattern.classList.add('active');
+    choiceUpload.classList.remove('active');
+    dropZone.classList.remove('active');
+    patternArea.classList.add('active');
+    cropSection.classList.remove('active');
+    controlsSection.style.display = 'none';
+    croppedPreviewContainer.style.display = 'none';
+  });
+
+  /* ============ FILE HANDLING ============ */
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+  fileInput.addEventListener('change', () => { if(fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+  function handleFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => { loadedImg = img; showCropTool(img); };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  /* ============ CROP TOOL ============ */
+  function showCropTool(img) {
+    cropImg.src = img.src;
+    cropSection.classList.add('active');
+    cropImg.onload = () => {
+      imgDisplayW = cropImg.clientWidth; imgDisplayH = cropImg.clientHeight;
+      const sz = Math.min(imgDisplayW, imgDisplayH) * 0.8;
+      cropRect = { x:(imgDisplayW-sz)/2, y:(imgDisplayH-sz)/2, w:sz, h:sz };
+      updateCropBox();
+    };
+    if (cropImg.complete) cropImg.onload();
+  }
+  function updateCropBox() {
+    cropBox.style.left=cropRect.x+'px'; cropBox.style.top=cropRect.y+'px';
+    cropBox.style.width=cropRect.w+'px'; cropBox.style.height=cropRect.h+'px';
+  }
+  let dragState = null;
+  cropContainer.addEventListener('mousedown', e => {
+    const handle = e.target.dataset.handle;
+    if (handle) dragState = { type:'handle', handle, startX:e.clientX, startY:e.clientY, startRect:{...cropRect} };
+    else if (e.target === cropBox) dragState = { type:'move', startX:e.clientX, startY:e.clientY, startRect:{...cropRect} };
+    e.preventDefault();
+  });
+  function handleCropMove(cx, cy) {
+    if (!dragState) return;
+    const dx=cx-dragState.startX, dy=cy-dragState.startY, s=dragState.startRect;
+    if (dragState.type==='move') {
+      cropRect.x=Math.max(0,Math.min(imgDisplayW-s.w,s.x+dx));
+      cropRect.y=Math.max(0,Math.min(imgDisplayH-s.h,s.y+dy));
+    } else {
+      const h=dragState.handle; let nx=s.x,ny=s.y,nw=s.w,nh=s.h;
+      if(h.includes('r'))nw=Math.max(30,s.w+dx); if(h.includes('l')){nx=s.x+dx;nw=s.w-dx;}
+      if(h.includes('b'))nh=Math.max(30,s.h+dy); if(h.includes('t')){ny=s.y+dy;nh=s.h-dy;}
+      const side=Math.max(30,Math.min(nw,nh));
+      if(h.includes('l'))nx=s.x+s.w-side; if(h.includes('t'))ny=s.y+s.h-side;
+      cropRect={x:Math.max(0,nx),y:Math.max(0,ny),w:Math.min(side,imgDisplayW-Math.max(0,nx)),h:Math.min(side,imgDisplayH-Math.max(0,ny))};
+    }
+    updateCropBox();
+  }
+  window.addEventListener('mousemove', e => handleCropMove(e.clientX, e.clientY));
+  window.addEventListener('mouseup', () => { dragState = null; });
+  cropContainer.addEventListener('touchstart', e => {
+    const t=e.touches[0], handle=e.target.dataset.handle;
+    if(handle) dragState={type:'handle',handle,startX:t.clientX,startY:t.clientY,startRect:{...cropRect}};
+    else if(e.target===cropBox) dragState={type:'move',startX:t.clientX,startY:t.clientY,startRect:{...cropRect}};
+    e.preventDefault();
+  }, {passive:false});
+  window.addEventListener('touchmove', e => { if(dragState) handleCropMove(e.touches[0].clientX,e.touches[0].clientY); }, {passive:false});
+  window.addEventListener('touchend', () => { dragState = null; });
+
+  /* ============ CONFIRM CROP ============ */
+  confirmCrop.addEventListener('click', () => {
+    if (!loadedImg) return;
+    const scaleX=loadedImg.naturalWidth/imgDisplayW, scaleY=loadedImg.naturalHeight/imgDisplayH;
+    const sx=cropRect.x*scaleX, sy=cropRect.y*scaleY, sw=cropRect.w*scaleX, sh=cropRect.h*scaleY;
+    workCanvas.width=GRID; workCanvas.height=GRID;
+    const ctx=workCanvas.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(loadedImg,sx,sy,sw,sh,0,0,GRID,GRID);
+    originalPixels=new Uint8ClampedArray(ctx.getImageData(0,0,GRID,GRID).data);
+    const pc=document.createElement('canvas'); pc.width=200; pc.height=200;
+    pc.getContext('2d').drawImage(loadedImg,sx,sy,sw,sh,0,0,200,200);
+    croppedPreview.src=pc.toDataURL(); croppedPreview.style.display='block';
+    computeSaliency();
+    controlsSection.style.display='flex';
+    statusText.textContent='Crop confirmed. Choose a mode and click Generate.';
+  });
+
+  /* ============ SALIENCY ============ */
+  function computeSaliency() {
+    const px=originalPixels, grey=new Float32Array(TOTAL);
+    for(let i=0;i<TOTAL;i++) grey[i]=luminance(px[i*4],px[i*4+1],px[i*4+2]);
+    saliencyMap=new Float32Array(TOTAL);
+    for(let y=1;y<GRID-1;y++) for(let x=1;x<GRID-1;x++){
+      const g=(r,c)=>grey[r*GRID+c];
+      const gx=-g(y-1,x-1)+g(y-1,x+1)-2*g(y,x-1)+2*g(y,x+1)-g(y+1,x-1)+g(y+1,x+1);
+      const gy2=-g(y-1,x-1)-2*g(y-1,x)-g(y-1,x+1)+g(y+1,x-1)+2*g(y+1,x)+g(y+1,x+1);
+      saliencyMap[y*GRID+x]=Math.sqrt(gx*gx+gy2*gy2);
+    }
+    let mx=0; for(let i=0;i<TOTAL;i++) if(saliencyMap[i]>mx) mx=saliencyMap[i];
+    if(mx>0) for(let i=0;i<TOTAL;i++) saliencyMap[i]/=mx;
+  }
+
+  /* ============ DITHERING ============ */
+  function makeBuf() { const buf=[]; for(let i=0;i<TOTAL;i++) buf.push([originalPixels[i*4],originalPixels[i*4+1],originalPixels[i*4+2]]); return buf; }
+  function ditherFloydSteinberg(buf) {
+    const a=new Int32Array(TOTAL);
+    for(let y=0;y<GRID;y++) for(let x=0;x<GRID;x++){
+      const idx=y*GRID+x,old=buf[idx],ci=nearestIdx([clamp(old[0]),clamp(old[1]),clamp(old[2])]);
+      a[idx]=ci; const nw=palRgb[ci],er=[old[0]-nw[0],old[1]-nw[1],old[2]-nw[2]];
+      const sp=(dx,dy,f)=>{const nx=x+dx,ny=y+dy;if(nx>=0&&nx<GRID&&ny>=0&&ny<GRID){const ni=ny*GRID+nx;buf[ni][0]+=er[0]*f;buf[ni][1]+=er[1]*f;buf[ni][2]+=er[2]*f;}};
+      sp(1,0,7/16);sp(-1,1,3/16);sp(0,1,5/16);sp(1,1,1/16);
+    } return a;
+  }
+  function ditherAtkinson(buf) {
+    const a=new Int32Array(TOTAL);
+    for(let y=0;y<GRID;y++) for(let x=0;x<GRID;x++){
+      const idx=y*GRID+x,old=buf[idx],ci=nearestIdx([clamp(old[0]),clamp(old[1]),clamp(old[2])]);
+      a[idx]=ci; const nw=palRgb[ci],er=[old[0]-nw[0],old[1]-nw[1],old[2]-nw[2]];
+      const sp=(dx,dy)=>{const nx=x+dx,ny=y+dy;if(nx>=0&&nx<GRID&&ny>=0&&ny<GRID){const ni=ny*GRID+nx;buf[ni][0]+=er[0]/8;buf[ni][1]+=er[1]/8;buf[ni][2]+=er[2]/8;}};
+      sp(1,0);sp(2,0);sp(-1,1);sp(0,1);sp(1,1);sp(0,2);
+    } return a;
+  }
+  function ditherOrdered(buf) {
+    const bayer=[[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]]; const a=new Int32Array(TOTAL);
+    for(let y=0;y<GRID;y++) for(let x=0;x<GRID;x++){const idx=y*GRID+x,t=(bayer[y%4][x%4]/16-0.5)*64;a[idx]=nearestIdx([clamp(buf[idx][0]+t),clamp(buf[idx][1]+t),clamp(buf[idx][2]+t)]);} return a;
+  }
+  function ditherNearest(buf){const a=new Int32Array(TOTAL);for(let i=0;i<TOTAL;i++)a[i]=nearestIdx(buf[i]);return a;}
+  function ditherOptimal(buf) {
+    const costs=new Float64Array(TOTAL*10);
+    for(let i=0;i<TOTAL;i++)for(let c=0;c<10;c++)costs[i*10+c]=colourDist(buf[i],palRgb[c]);
+    const a=new Int32Array(TOTAL);
+    for(let i=0;i<TOTAL;i++){let b=0,bd=Infinity;for(let c=0;c<10;c++){if(costs[i*10+c]<bd){bd=costs[i*10+c];b=c;}}a[i]=b;}
+    balanceAssignment(a,costs,null);
+    for(let round=0;round<200;round++){let imp=false;for(let i=0;i<TOTAL;i++)for(let j=i+1;j<TOTAL;j++){if(a[i]===a[j])continue;const ci=a[i],cj=a[j];if(costs[i*10+cj]+costs[j*10+ci]<costs[i*10+ci]+costs[j*10+cj]-0.01){a[i]=cj;a[j]=ci;imp=true;}}if(!imp)break;}
+    return a;
+  }
+  function balanceAssignment(a,costMatrix,sal) {
+    const count=new Int32Array(10);
+    for(let i=0;i<TOTAL;i++) if(a[i]>=0) count[a[i]]++;
+    for(let iter=0;iter<500;iter++){
+      let ok=true;for(let c=0;c<10;c++)if(count[c]!==PER_COLOUR){ok=false;break;}if(ok)break;
+      let overC=-1,underC=-1,wo=0,wu=0;
+      for(let c=0;c<10;c++){if(count[c]>PER_COLOUR&&count[c]-PER_COLOUR>wo){wo=count[c]-PER_COLOUR;overC=c;}if(count[c]<PER_COLOUR&&PER_COLOUR-count[c]>wu){wu=PER_COLOUR-count[c];underC=c;}}
+      if(overC===-1||underC===-1)break;
+      let bestP=-1,bestCost=Infinity;
+      for(let i=0;i<TOTAL;i++){if(a[i]!==overC)continue;const w=sal?(1+sal[i]*4):1;let cn,cw;if(costMatrix){cn=costMatrix[i*10+overC];cw=costMatrix[i*10+underC];}else if(originalPixels){const o=[originalPixels[i*4],originalPixels[i*4+1],originalPixels[i*4+2]];cn=colourDist(o,palRgb[overC]);cw=colourDist(o,palRgb[underC]);}else{cn=0;cw=0;}const d=(cw-cn)*w;if(d<bestCost){bestCost=d;bestP=i;}}
+      if(bestP===-1)break;count[overC]--;count[underC]++;a[bestP]=underC;
+    }
+  }
+  function smoothBackground(a) {
+    if(!saliencyMap)return;const th=0.15;
+    for(let y=0;y<GRID;y++)for(let x=1;x<GRID;x++){
+      const idx=y*GRID+x,idxL=y*GRID+(x-1);
+      if(saliencyMap[idx]>=th||a[idx]===a[idxL])continue;
+      const tC=a[idxL],myC=a[idx];if(tC<0||myC<0)continue;let bS=-1,bD=0;
+      for(let j=0;j<TOTAL;j++){if(j===idx||a[j]!==tC)continue;const oJ=[originalPixels[j*4],originalPixels[j*4+1],originalPixels[j*4+2]],oI=[originalPixels[idx*4],originalPixels[idx*4+1],originalPixels[idx*4+2]];const d=(colourDist(oI,palRgb[tC])+colourDist(oJ,palRgb[myC]))-(colourDist(oI,palRgb[myC])+colourDist(oJ,palRgb[tC]));if(d<bD||(bS===-1&&d<50000)){bD=d;bS=j;}}
+      if(bS!==-1&&bD<50000){a[bS]=myC;a[idx]=tC;}
+    }
+  }
+
+  /* ============ PATTERN GENERATORS ============ */
+  // Each returns Int32Array(400) with exactly 20 of each colour 0-9
+  function balancePattern(a) {
+    // Force exact 20 per colour via redistribution
+    const count = new Int32Array(10);
+    for (let i=0;i<TOTAL;i++) count[a[i]]++;
+    for (let iter=0;iter<1000;iter++) {
+      let ok=true; for(let c=0;c<10;c++) if(count[c]!==PER_COLOUR){ok=false;break;} if(ok)break;
+      let overC=-1,underC=-1,wo=0,wu=0;
+      for(let c=0;c<10;c++){if(count[c]>PER_COLOUR&&count[c]-PER_COLOUR>wo){wo=count[c]-PER_COLOUR;overC=c;}if(count[c]<PER_COLOUR&&PER_COLOUR-count[c]>wu){wu=PER_COLOUR-count[c];underC=c;}}
+      if(overC===-1||underC===-1)break;
+      // Find pixel of overC to reassign to underC (random-ish: pick last occurrence)
+      for(let i=TOTAL-1;i>=0;i--){if(a[i]===overC){a[i]=underC;count[overC]--;count[underC]++;break;}}
+    }
+    return a;
+  }
+
+  function genChevron() {
+    const a = new Int32Array(TOTAL);
+    for (let y=0;y<GRID;y++) for (let x=0;x<GRID;x++) {
+      const band = Math.floor(y / 2);
+      const offset = (band % 2 === 0) ? x : GRID - 1 - x;
+      const vShape = (offset < GRID/2) ? offset : GRID - 1 - offset;
+      a[y*GRID+x] = (band + Math.floor(vShape / 2)) % 10;
+    }
+    return balancePattern(a);
+  }
+
+  function genHerringbone() {
+    const a = new Int32Array(TOTAL);
+    for (let y=0;y<GRID;y++) for (let x=0;x<GRID;x++) {
+      const blockY = Math.floor(y/2), blockX = Math.floor(x/2);
+      const isOdd = (blockY + blockX) % 2;
+      const localIdx = isOdd ? (y%2)*2+(x%2) : (x%2)*2+(y%2);
+      a[y*GRID+x] = (blockY * 2 + blockX + localIdx) % 10;
+    }
+    return balancePattern(a);
+  }
+
+  function genGreekKey() {
+    const a = new Int32Array(TOTAL);
+    // Tile a 5x5 Greek key unit across the 20x20 grid
+    const key5 = [
+      [0,0,0,0,0],
+      [1,1,1,1,0],
+      [1,0,0,1,0],
+      [1,0,1,1,0],
+      [1,0,0,0,0],
+    ];
+    for (let y=0;y<GRID;y++) for (let x=0;x<GRID;x++) {
+      const tileY = Math.floor(y/5), tileX = Math.floor(x/5);
+      const ly = y%5, lx = x%5;
+      const isBorder = key5[ly][lx];
+      const baseColour = (tileY * 4 + tileX * 2) % 10;
+      a[y*GRID+x] = isBorder ? (baseColour + 5) % 10 : baseColour;
+    }
+    return balancePattern(a);
+  }
+
+  function genTessellation() {
+    const a = new Int32Array(TOTAL);
+    for (let y=0;y<GRID;y++) for (let x=0;x<GRID;x++) {
+      // Hexagonal-ish tessellation
+      const row = Math.floor(y / 4);
+      const shifted = row % 2 === 0 ? x : (x + 2) % GRID;
+      const col = Math.floor(shifted / 4);
+      const ly = y % 4, lx = shifted % 4;
+      const isEdge = ly === 0 || lx === 0;
+      a[y*GRID+x] = isEdge ? (row + col + 5) % 10 : (row * 3 + col * 2) % 10;
+    }
+    return balancePattern(a);
+  }
+
+  function genGreekMeander() {
+    const a = new Int32Array(TOTAL);
+    // Spiral meander tiled in 10x10 blocks
+    const m10 = [];
+    for (let i=0;i<100;i++) m10.push(0);
+    // Draw spiral in 10x10
+    function setM(r,c,v) { if(r>=0&&r<10&&c>=0&&c<10) m10[r*10+c]=v; }
+    // Outer border spiral
+    for(let i=0;i<10;i++) { setM(0,i,1); setM(9,i,1); }
+    for(let i=1;i<9;i++) { setM(i,9,1); }
+    for(let i=8;i>=2;i--) setM(i,2,1);
+    for(let i=2;i<8;i++) setM(2,i,1);
+    for(let i=3;i<8;i++) setM(i,7,1);
+    for(let i=7;i>=4;i--) setM(7,i,1);
+    for(let i=6;i>=4;i--) setM(i,4,1);
+    for(let i=4;i<7;i++) setM(4,i,1);
+    for(let y=0;y<GRID;y++) for(let x=0;x<GRID;x++) {
+      const ty=Math.floor(y/10), tx=Math.floor(x/10);
+      const ly=y%10, lx=x%10;
+      const v = m10[ly*10+lx];
+      a[y*GRID+x] = v ? (ty*3+tx*2+5)%10 : (ty*3+tx*2)%10;
+    }
+    return balancePattern(a);
+  }
+
+  function genTMeander() {
+    const a = new Int32Array(TOTAL);
+    // T-shaped stepped pattern in 4x4 tiles
+    const t4 = [
+      [1,1,1,0],
+      [0,1,0,0],
+      [0,1,0,0],
+      [0,1,1,1],
+    ];
+    for(let y=0;y<GRID;y++) for(let x=0;x<GRID;x++) {
+      const ty=Math.floor(y/4), tx=Math.floor(x/4);
+      const ly=y%4, lx=x%4;
+      const flip = (ty+tx)%2;
+      const ey = flip ? 3-ly : ly;
+      const ex = flip ? 3-lx : lx;
+      const v = t4[ey][ex];
+      a[y*GRID+x] = v ? (ty*2+tx*3+7)%10 : (ty*2+tx*3)%10;
+    }
+    return balancePattern(a);
+  }
+
+  function genGuilloche() {
+    const a = new Int32Array(TOTAL);
+    for(let y=0;y<GRID;y++) for(let x=0;x<GRID;x++) {
+      const cx=x-9.5, cy=y-9.5;
+      const r = Math.sqrt(cx*cx+cy*cy);
+      const angle = Math.atan2(cy,cx);
+      const wave = Math.sin(r*1.2 + angle*3) + Math.sin(r*0.8 - angle*2);
+      const band = Math.floor((wave+2)*2.5);
+      a[y*GRID+x] = Math.abs(band) % 10;
+    }
+    return balancePattern(a);
+  }
+
+  function genSolomonKnot() {
+    const a = new Int32Array(TOTAL);
+    // Solomon knot: interlocking loops in 10x10 tiles
+    for(let y=0;y<GRID;y++) for(let x=0;x<GRID;x++) {
+      const ly=y%10, lx=x%10;
+      const ty=Math.floor(y/10), tx=Math.floor(x/10);
+      // Create loop pattern
+      const cx=lx-4.5, cy=ly-4.5;
+      const r=Math.sqrt(cx*cx+cy*cy);
+      const isRing = (r>2.5 && r<4.5);
+      const isInner = (r<=2.5);
+      const quadrant = (cx>=0?0:1) + (cy>=0?0:2);
+      if (isRing) {
+        a[y*GRID+x] = (quadrant*2 + ty + tx) % 10;
+      } else if (isInner) {
+        a[y*GRID+x] = (quadrant*2 + ty + tx + 5) % 10;
+      } else {
+        a[y*GRID+x] = (ty*3 + tx*2 + 1) % 10;
+      }
+    }
+    return balancePattern(a);
+  }
+
+  const PATTERN_MAP = {
+    chevron: genChevron,
+    herringbone: genHerringbone,
+    greekkey: genGreekKey,
+    tessellation: genTessellation,
+    greekmeander: genGreekMeander,
+    tmeander: genTMeander,
+    guilloche: genGuilloche,
+    solomonknot: genSolomonKnot,
+  };
+
+  /* ============ PATTERN GENERATION ============ */
+  generatePatternBtn.addEventListener('click', () => {
+    const patternName = patternSelect.value;
+    const genFn = PATTERN_MAP[patternName];
+    if (!genFn) return;
+    statusText.textContent = 'Generating pattern...';
+    requestAnimationFrame(() => {
+      assigned = genFn();
+      generatedAssigned = new Int32Array(assigned);
+      // Synthesise originalPixels from the pattern (for swap cost logic)
+      originalPixels = new Uint8ClampedArray(TOTAL * 4);
+      for (let i=0;i<TOTAL;i++) {
+        const c = assigned[i] >= 0 ? palRgb[assigned[i]] : [208,208,208];
+        originalPixels[i*4]=c[0]; originalPixels[i*4+1]=c[1]; originalPixels[i*4+2]=c[2]; originalPixels[i*4+3]=255;
+      }
+      saliencyMap = null;
+      undoStack = [];
+      exitEditMode();
+      renderGrid(false);
+      patternControlsSection.style.display = 'flex';
+      downloadRow.classList.add('active');
+      statusText.textContent = `Pattern "${patternSelect.options[patternSelect.selectedIndex].text}" generated. Click "Edit Mode" to adjust.`;
+    });
+  });
+
+  /* ============ IMAGE GENERATE ============ */
+  generateBtn.addEventListener('click', () => {
+    if(!originalPixels) return;
+    statusText.textContent='Generating...';
+    requestAnimationFrame(()=>{
+      const mode=$('ditherMode').value, buf=makeBuf(); let a;
+      switch(mode){case 'floyd':a=ditherFloydSteinberg(buf);break;case 'atkinson':a=ditherAtkinson(buf);break;case 'ordered':a=ditherOrdered(buf);break;case 'nearest':a=ditherNearest(buf);break;case 'optimal':a=ditherOptimal(buf);break;default:a=ditherFloydSteinberg(buf);}
+      smoothBackground(a);
+      if(mode!=='optimal') balanceAssignment(a,null,saliencyMap);
+      assigned=a; generatedAssigned=new Int32Array(a);
+      undoStack=[]; exitEditMode(); renderGrid(false);
+      editModeBtn.style.display='inline-block';
+      downloadRow.classList.add('active');
+      statusText.textContent='Done! Click "Edit Mode" to manually adjust blocks.';
+    });
+  });
+
+  /* ============ RENDER GRID ============ */
+  function getBlockColour(idx) {
+    if (!assigned || assigned[idx] === EMPTY) return EMPTY_COLOUR;
+    return PALETTE[assigned[idx]].hex;
+  }
+
+  function renderGrid(showGridLines) {
+    const canvasSize = GRID * BLOCK_PX + (showGridLines ? GRID + 1 : 0);
+    gridCanvas.width = canvasSize; gridCanvas.height = canvasSize;
+    const ctx = gridCanvas.getContext('2d');
+    if (showGridLines) {
+      ctx.fillStyle = '#333'; ctx.fillRect(0, 0, canvasSize, canvasSize);
+      for (let y=0;y<GRID;y++) for (let x=0;x<GRID;x++) {
+        ctx.fillStyle = getBlockColour(y*GRID+x);
+        ctx.fillRect(x*BLOCK_PX+(x+1), y*BLOCK_PX+(y+1), BLOCK_PX, BLOCK_PX);
+      }
+    } else {
+      for (let y=0;y<GRID;y++) for (let x=0;x<GRID;x++) {
+        ctx.fillStyle = getBlockColour(y*GRID+x);
+        ctx.fillRect(x*BLOCK_PX, y*BLOCK_PX, BLOCK_PX, BLOCK_PX);
+      }
+    }
+    updateCounts();
+    updateEditorPalette();
+  }
+
+  function getCounts() {
+    const c = new Int32Array(10);
+    if (assigned) for (let i=0;i<TOTAL;i++) { if (assigned[i] >= 0 && assigned[i] < 10) c[assigned[i]]++; }
+    return c;
+  }
+
+  function getEmptyCount() {
+    let n=0; if(assigned) for(let i=0;i<TOTAL;i++) if(assigned[i]===EMPTY) n++; return n;
+  }
+
+  function updateCounts() {
+    const count = getCounts();
+    const empty = getEmptyCount();
+    blockCountsEl.innerHTML = '';
+    blockCountsEl.classList.add('active');
+    PALETTE.forEach((p,i) => {
+      const chip = document.createElement('span');
+      chip.className = 'count-chip'; chip.style.background = p.hex;
+      chip.textContent = `#${p.num}: ${count[i]}/20`;
+      blockCountsEl.appendChild(chip);
+    });
+    if (empty > 0) {
+      const chip = document.createElement('span');
+      chip.className = 'count-chip'; chip.style.background = EMPTY_COLOUR; chip.style.color = '#333';
+      chip.textContent = `Empty: ${empty}`;
+      blockCountsEl.appendChild(chip);
+    }
+  }
+
+  /* ============ EDITOR PALETTE SIDEBAR ============ */
+  function buildEditorPalette() {
+    editorColourList.innerHTML = '';
+    PALETTE.forEach((p,i) => {
+      const row = document.createElement('div');
+      row.className = 'editor-colour-row' + (i===selectedColourIdx?' selected':'');
+      row.dataset.colourIdx = i; row.draggable = true;
+      row.innerHTML = `<div class="editor-colour-block" style="background:${p.hex};"></div><div class="editor-colour-info"><span class="colour-name">#${p.num} ${p.name}</span><span class="colour-count" id="ecCount${i}">0/20</span></div>`;
+      row.addEventListener('click', () => {
+        selectedColourIdx=i; activeTool='paint'; updateToolButtons();
+        document.querySelectorAll('.editor-colour-row').forEach(r=>r.classList.remove('selected'));
+        row.classList.add('selected');
+        statusText.textContent=`Paint: #${p.num} ${p.name} selected.`;
+      });
+      row.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain',String(i)); e.dataTransfer.effectAllowed='copy';
+        dragGhost.style.width=BLOCK_PX+'px'; dragGhost.style.height=BLOCK_PX+'px';
+        dragGhost.style.background=p.hex; dragGhost.style.display='block';
+        dragGhost.style.left='-100px'; dragGhost.style.top='-100px';
+        e.dataTransfer.setDragImage(dragGhost,BLOCK_PX/2,BLOCK_PX/2);
+        selectedColourIdx=i;
+        document.querySelectorAll('.editor-colour-row').forEach(r=>r.classList.remove('selected'));
+        row.classList.add('selected');
+      });
+      row.addEventListener('dragend', ()=>{ dragGhost.style.display='none'; });
+      editorColourList.appendChild(row);
+    });
+  }
+
+  function updateEditorPalette() {
+    const count = getCounts();
+    PALETTE.forEach((p,i) => {
+      const el = document.getElementById('ecCount'+i);
+      if(!el)return; const n=count[i];
+      el.textContent = `${n} / 20`;
+      el.className = 'colour-count';
+      if(n===PER_COLOUR) el.classList.add('count-ok');
+      else if(n>PER_COLOUR) el.classList.add('count-over');
+      else el.classList.add('count-under');
+    });
+  }
+
+  /* ============ EDIT MODE ============ */
+  function toggleEditMode() { if(editMode) exitEditMode(); else enterEditMode(); }
+  editModeBtn.addEventListener('click', toggleEditMode);
+  editModeBtnPattern.addEventListener('click', toggleEditMode);
+
+  function enterEditMode() {
+    editMode=true;
+    editModeBtn.textContent='Exit Edit Mode'; editModeBtn.classList.add('active');
+    editModeBtnPattern.textContent='Exit Edit Mode'; editModeBtnPattern.classList.add('active');
+    gridWrap.classList.add('edit-mode');
+    editorTools.style.display='flex'; editorPanel.classList.add('active');
+    gridTitle.textContent='Block Art — Edit Mode';
+    buildEditorPalette(); renderGrid(true);
+    statusText.textContent='Edit mode active. Select a colour and paint, or drag colours onto the grid.';
+  }
+  function exitEditMode() {
+    editMode=false;
+    editModeBtn.textContent='Edit Mode'; editModeBtn.classList.remove('active');
+    editModeBtnPattern.textContent='Edit Mode'; editModeBtnPattern.classList.remove('active');
+    gridWrap.classList.remove('edit-mode');
+    editorTools.style.display='none'; editorPanel.classList.remove('active');
+    gridTitle.textContent='Block Art';
+    if(assigned) renderGrid(false);
+  }
+
+  /* ============ TOOL BUTTONS ============ */
+  const toolPaintBtn=$('toolPaint'), toolEraserBtn=$('toolEraser'), toolUndoBtn=$('toolUndo'), toolResetBtn=$('toolReset'), brushSizeSelect=$('brushSize');
+  toolPaintBtn.addEventListener('click',()=>{ activeTool='paint'; updateToolButtons(); statusText.textContent='Paint tool active.'; });
+  toolEraserBtn.addEventListener('click',()=>{ activeTool='eraser'; updateToolButtons(); statusText.textContent='Eraser tool: removes colour from blocks.'; });
+  toolUndoBtn.addEventListener('click', doUndo);
+  toolResetBtn.addEventListener('click', ()=>{
+    if(!generatedAssigned)return; pushUndo();
+    assigned=new Int32Array(generatedAssigned); renderGrid(true);
+    statusText.textContent='Reset to generated output.';
+  });
+  brushSizeSelect.addEventListener('change', ()=>{ brushSize=parseInt(brushSizeSelect.value); });
+
+  function updateToolButtons() {
+    toolPaintBtn.classList.toggle('active',activeTool==='paint');
+    toolEraserBtn.classList.toggle('active',activeTool==='eraser');
+  }
+  function pushUndo() { undoStack.push(new Int32Array(assigned)); if(undoStack.length>50)undoStack.shift(); }
+  function doUndo() { if(!undoStack.length){statusText.textContent='Nothing to undo.';return;} assigned=undoStack.pop(); renderGrid(true); statusText.textContent='Undo applied.'; }
+
+  /* ============ GRID INTERACTION ============ */
+  function gridCoordsFromEvent(e) {
+    const rect=gridCanvas.getBoundingClientRect();
+    const sx=gridCanvas.width/rect.width, sy=gridCanvas.height/rect.height;
+    const px=(e.clientX-rect.left)*sx, py=(e.clientY-rect.top)*sy;
+    if(editMode){const gx=Math.floor(px/(BLOCK_PX+1)),gy=Math.floor(py/(BLOCK_PX+1));return{gx:Math.max(0,Math.min(GRID-1,gx)),gy:Math.max(0,Math.min(GRID-1,gy))};}
+    return{gx:Math.floor(px/BLOCK_PX),gy:Math.floor(py/BLOCK_PX)};
+  }
+
+  function applyBrush(gx, gy) {
+    if(!assigned||!editMode) return;
+    const count = getCounts();
+    const half = Math.floor(brushSize/2);
+    for(let dy=0;dy<brushSize;dy++) for(let dx=0;dx<brushSize;dx++){
+      const bx=gx-half+dx, by=gy-half+dy;
+      if(bx<0||bx>=GRID||by<0||by>=GRID) continue;
+      const idx=by*GRID+bx;
+
+      if(activeTool==='paint') {
+        const newC=selectedColourIdx, oldC=assigned[idx];
+        if(oldC===newC) continue;
+        if(oldC===EMPTY) {
+          // Painting onto empty cell — just place it if under limit
+          if(count[newC]<PER_COLOUR) { assigned[idx]=newC; count[newC]++; }
+        } else if(count[newC]<PER_COLOUR) {
+          // Under limit, just paint
+          assigned[idx]=newC; count[newC]++; count[oldC]--;
+        } else {
+          // At limit — must swap with a block elsewhere that has newC
+          let bestSwap=-1, bestCost=-Infinity;
+          for(let j=0;j<TOTAL;j++){
+            if(assigned[j]!==newC||j===idx) continue;
+            const origJ=[originalPixels[j*4],originalPixels[j*4+1],originalPixels[j*4+2]];
+            const delta=colourDist(origJ,palRgb[newC])-colourDist(origJ,palRgb[oldC]);
+            if(delta>bestCost){bestCost=delta;bestSwap=j;}
+          }
+          if(bestSwap!==-1){assigned[bestSwap]=oldC;assigned[idx]=newC;}
+        }
+      } else if(activeTool==='eraser') {
+        // Erase: set to EMPTY
+        const oldC=assigned[idx];
+        if(oldC===EMPTY) continue;
+        assigned[idx]=EMPTY;
+        count[oldC]--;
+      }
+    }
+  }
+
+  // Mouse
+  gridCanvas.addEventListener('mousedown', e => {
+    if(!editMode||!assigned)return; pushUndo(); isMouseDown=true;
+    const{gx,gy}=gridCoordsFromEvent(e); applyBrush(gx,gy); renderGrid(true); drawBrushShadow(gx,gy); e.preventDefault();
+  });
+  let lastHover={gx:-1,gy:-1};
+  gridCanvas.addEventListener('mousemove', e => {
+    const{gx,gy}=gridCoordsFromEvent(e);
+    if(isMouseDown&&editMode){applyBrush(gx,gy);renderGrid(true);drawBrushShadow(gx,gy);}
+    else if(editMode&&assigned){if(gx!==lastHover.gx||gy!==lastHover.gy){renderGrid(true);drawBrushShadow(gx,gy);lastHover={gx,gy};}}
+  });
+  gridCanvas.addEventListener('mouseleave',()=>{if(editMode&&assigned&&!isMouseDown){renderGrid(true);lastHover={gx:-1,gy:-1};}});
+  window.addEventListener('mouseup',()=>{isMouseDown=false;});
+
+  function drawBrushShadow(gx,gy) {
+    if(!editMode)return;
+    const ctx=gridCanvas.getContext('2d'), half=Math.floor(brushSize/2), step=BLOCK_PX+1;
+    ctx.save();
+    for(let dy=0;dy<brushSize;dy++) for(let dx=0;dx<brushSize;dx++){
+      const bx=gx-half+dx,by=gy-half+dy;
+      if(bx<0||bx>=GRID||by<0||by>=GRID)continue;
+      const px=bx*step+1,py=by*step+1;
+      ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.fillRect(px,py,BLOCK_PX,BLOCK_PX);
+      ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=2;
+      ctx.strokeRect(px+1,py+1,BLOCK_PX-2,BLOCK_PX-2);
+    }
+    ctx.restore();
+  }
+
+  // Touch
+  gridCanvas.addEventListener('touchstart', e => {
+    if(!editMode||!assigned)return; pushUndo(); isMouseDown=true;
+    const{gx,gy}=gridCoordsFromEvent(e.touches[0]); applyBrush(gx,gy); renderGrid(true); e.preventDefault();
+  },{passive:false});
+  gridCanvas.addEventListener('touchmove', e => {
+    if(!isMouseDown||!editMode)return;
+    const{gx,gy}=gridCoordsFromEvent(e.touches[0]); applyBrush(gx,gy); renderGrid(true); e.preventDefault();
+  },{passive:false});
+  gridCanvas.addEventListener('touchend',()=>{isMouseDown=false;});
+
+  // Drag-drop
+  gridCanvas.addEventListener('dragover', e=>{e.preventDefault();e.dataTransfer.dropEffect='copy';});
+  gridCanvas.addEventListener('drop', e => {
+    e.preventDefault(); if(!editMode||!assigned)return;
+    const colIdx=parseInt(e.dataTransfer.getData('text/plain'));
+    if(isNaN(colIdx)||colIdx<0||colIdx>=10)return;
+    pushUndo(); selectedColourIdx=colIdx; activeTool='paint'; updateToolButtons();
+    document.querySelectorAll('.editor-colour-row').forEach(r=>r.classList.toggle('selected',parseInt(r.dataset.colourIdx)===colIdx));
+    const{gx,gy}=gridCoordsFromEvent(e); applyBrush(gx,gy); renderGrid(true);
+    statusText.textContent=`Dropped #${PALETTE[colIdx].num} ${PALETTE[colIdx].name} at (${gx+1},${gy+1}).`;
+  });
+
+  /* ============ DOWNLOADS ============ */
+  $('dlArt').addEventListener('click', () => {
+    const BPX=40; exportCanvas.width=GRID*BPX; exportCanvas.height=GRID*BPX;
+    const ctx=exportCanvas.getContext('2d');
+    for(let y=0;y<GRID;y++) for(let x=0;x<GRID;x++){
+      const idx=y*GRID+x;
+      ctx.fillStyle=(assigned[idx]>=0&&assigned[idx]<10)?PALETTE[assigned[idx]].hex:EMPTY_COLOUR;
+      ctx.fillRect(x*BPX,y*BPX,BPX,BPX);
+    }
+    dlFile(exportCanvas,'tesera-block-art.png');
+  });
+
+  $('dlGuide').addEventListener('click', () => {
+    const BPX=40, legendH=60, W=GRID*BPX+(GRID+1), H=GRID*BPX+(GRID+1)+legendH;
+    exportCanvas.width=W; exportCanvas.height=H;
+    const ctx=exportCanvas.getContext('2d');
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+    for(let y=0;y<GRID;y++) for(let x=0;x<GRID;x++){
+      const idx=y*GRID+x, bx=x*BPX+(x+1), by=y*BPX+(y+1);
+      const ci=assigned[idx];
+      if(ci>=0&&ci<10){
+        ctx.fillStyle=PALETTE[ci].hex; ctx.fillRect(bx,by,BPX,BPX);
+        const lum=luminance(...palRgb[ci]);
+        ctx.fillStyle=lum>128?'#000':'#fff'; ctx.font='bold 14px sans-serif';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(String(PALETTE[ci].num),bx+BPX/2,by+BPX/2);
+      } else {
+        ctx.fillStyle=EMPTY_COLOUR; ctx.fillRect(bx,by,BPX,BPX);
+      }
+    }
+    ctx.strokeStyle='#000'; ctx.lineWidth=1;
+    for(let i=0;i<=GRID;i++){const p=i*BPX+i+0.5;ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,GRID*BPX+(GRID+1));ctx.stroke();ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(GRID*BPX+(GRID+1),p);ctx.stroke();}
+    const legY=GRID*BPX+(GRID+1)+10;
+    ctx.font='bold 11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    PALETTE.forEach((p,i)=>{
+      const lx=10+i*(W/10);
+      ctx.fillStyle=p.hex; ctx.fillRect(lx,legY,16,16);
+      ctx.strokeStyle='#000'; ctx.strokeRect(lx,legY,16,16);
+      ctx.fillStyle=luminance(...palRgb[i])>128?'#000':'#fff';
+      ctx.textAlign='center'; ctx.fillText(String(p.num),lx+8,legY+8);
+      ctx.fillStyle='#333'; ctx.textAlign='left'; ctx.font='9px sans-serif';
+      ctx.fillText(p.name,lx+20,legY+8); ctx.font='bold 11px sans-serif';
+    });
+    dlFile(exportCanvas,'tesera-guide.png');
+  });
+
+  function dlFile(canvas, filename) {
+    const a=document.createElement('a'); a.download=filename;
+    a.href=canvas.toDataURL('image/png'); a.click();
+  }
+
+})();
+</script>
+</body>
+</html>
