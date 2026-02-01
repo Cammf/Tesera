@@ -57,39 +57,39 @@ for (let r = 0; r < rows; r++) {
 
 function tileAt(r,c){ return tileMap[r+","+c]; }
 
-// --- Compact bitmap font (2 wide × 3 tall) ---
-// Each letter uses only 1-2 blocks per row across 3 rows
+// --- Compact bitmap font (3 wide × 3 tall) ---
+// Each letter is 2 blocks wide per stroke, 3 rows tall
 const font = {
   T: [
-    "11",
-    "01",
-    "01",
+    "111",
+    "010",
+    "010",
   ],
   E: [
-    "11",
-    "10",
-    "11",
+    "111",
+    "110",
+    "111",
   ],
   S: [
-    "11",
-    "01",
-    "11",
+    "111",
+    "011",
+    "111",
   ],
   R: [
-    "11",
-    "11",
-    "10",
+    "111",
+    "111",
+    "100",
   ],
   A: [
-    "11",
-    "11",
-    "10",
+    "111",
+    "111",
+    "101",
   ],
 };
 
 // --- Spell TESERA, centred in the 40×20 grid ---
 const word = "TESERA";
-const letterW = 2;
+const letterW = 3;
 const letterH = 3;
 const gapBetween = 1; // 1-col gap between letters
 const totalW = word.length * letterW + (word.length - 1) * gapBetween; // 17
