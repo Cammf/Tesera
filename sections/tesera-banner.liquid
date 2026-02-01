@@ -1,0 +1,189 @@
+{% comment %}
+  TESERA Animated Banner Section
+  Add this file as sections/tesera-banner.liquid in your Shopify theme.
+  Then include it in your template with {% section 'tesera-banner' %}
+{% endcomment %}
+
+{% schema %}
+{
+  "name": "TESERA Banner",
+  "settings": [
+    {
+      "type": "range",
+      "id": "max_width",
+      "label": "Max width (px)",
+      "min": 400,
+      "max": 1400,
+      "step": 50,
+      "default": 900
+    },
+    {
+      "type": "color",
+      "id": "bg_color",
+      "label": "Background colour",
+      "default": "#ffffff"
+    }
+  ],
+  "presets": [
+    {
+      "name": "TESERA Banner"
+    }
+  ]
+}
+{% endschema %}
+
+<style>
+  .tesera-banner {
+    background: {{ section.settings.bg_color }};
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 20px;
+  }
+  .tesera-banner svg {
+    width: 100%;
+    max-width: {{ section.settings.max_width }}px;
+  }
+  .tesera-banner .tile {
+    transition: fill 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+  }
+  .tesera-banner .g1 { fill:#E6E6E8; }
+  .tesera-banner .g2 { fill:#DADADD; }
+  .tesera-banner .blue { fill:#0072CE; }
+  .tesera-banner .yellow { fill:#FFC325; }
+</style>
+
+<div class="tesera-banner" id="tesera-banner-{{ section.id }}">
+  <svg viewBox="0 0 874 434">
+    <g id="tesera-grid-{{ section.id }}"></g>
+  </svg>
+</div>
+
+<script>
+(function(){
+  const sectionId = "{{ section.id }}";
+  const cols = 40;
+  const rows = 20;
+  const size = 16;
+  const gap = 6;
+
+  const grid = document.getElementById("tesera-grid-" + sectionId);
+
+  const tileMap = {};
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
+      rect.setAttribute("x", c * (size + gap));
+      rect.setAttribute("y", r * (size + gap));
+      rect.setAttribute("width", size);
+      rect.setAttribute("height", size);
+      rect.setAttribute("class", "tile " + ((r + c) % 2 === 0 ? "g1":"g2"));
+      grid.appendChild(rect);
+      tileMap[r+","+c] = rect;
+    }
+  }
+
+  function tileAt(r,c){ return tileMap[r+","+c]; }
+
+  const font = {
+    T: ["11111","00100","00100","00100","00100","00100","00100"],
+    E: ["11111","10000","10000","11110","10000","10000","11111"],
+    S: ["11111","10000","10000","11111","00001","00001","11111"],
+    R: ["11110","10001","10001","11110","10100","10010","10001"],
+    A: ["01110","10001","10001","11111","10001","10001","10001"],
+  };
+
+  const word = "TESERA";
+  const letterW = 5;
+  const letterH = 7;
+  const gapBetween = 1;
+  const totalW = word.length * letterW + (word.length - 1) * gapBetween;
+  const startCol = Math.floor((cols - totalW) / 2);
+  const startRow = Math.floor((rows - letterH) / 2);
+
+  const blueTiles = [];
+  for (let li = 0; li < word.length; li++) {
+    const letter = font[word[li]];
+    const colOff = startCol + li * (letterW + gapBetween);
+    for (let dr = 0; dr < letterH; dr++) {
+      for (let dc = 0; dc < letterW; dc++) {
+        if (letter[dr][dc] === "1") {
+          blueTiles.push([startRow + dr, colOff + dc]);
+        }
+      }
+    }
+  }
+
+  const yellowRow = startRow;
+  const yellowTiles = [];
+  for (let li = 0; li < word.length; li++) {
+    const letter = font[word[li]];
+    const colOff = startCol + li * (letterW + gapBetween);
+    const filled = [];
+    for (let dc = 0; dc < letterW; dc++) {
+      if (letter[0][dc] === "1") filled.push(colOff + dc);
+    }
+    yellowTiles.push([yellowRow, filled[filled.length - 2]]);
+    yellowTiles.push([yellowRow, filled[filled.length - 1]]);
+  }
+
+  const yellowSet = new Set(yellowTiles.map(function(t){ return t[0]+","+t[1]; }));
+  const blueOnly = blueTiles.filter(function(t){ return !yellowSet.has(t[0]+","+t[1]); });
+
+  function groupByCol(arr) {
+    const map = {};
+    arr.forEach(function(t){ (map[t[1]] = map[t[1]] || []).push(t); });
+    return Object.keys(map).sort(function(a,b){ return a - b; }).map(function(k){ return map[k]; });
+  }
+
+  const blueCols = groupByCol(blueOnly);
+  const yellowCols = groupByCol(yellowTiles);
+
+  // Use IntersectionObserver so animation triggers when banner scrolls into view
+  const banner = document.getElementById("tesera-banner-" + sectionId);
+  let animated = false;
+
+  function runAnimation() {
+    if (animated) return;
+    animated = true;
+
+    setTimeout(function(){
+      blueCols.forEach(function(tiles, ci){
+        setTimeout(function(){
+          tiles.forEach(function(t){
+            var el = tileAt(t[0],t[1]);
+            if (el) el.setAttribute("class","tile blue");
+          });
+        }, ci * 80);
+      });
+    }, 600);
+
+    var blueEnd = 600 + blueCols.length * 80;
+
+    setTimeout(function(){
+      yellowCols.forEach(function(tiles, ci){
+        setTimeout(function(){
+          tiles.forEach(function(t){
+            var el = tileAt(t[0],t[1]);
+            if (el) el.setAttribute("class","tile yellow");
+          });
+        }, ci * 80);
+      });
+    }, blueEnd + 400);
+  }
+
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (entry.isIntersecting) {
+          runAnimation();
+          observer.disconnect();
+        }
+      });
+    }, { threshold: 0.3 });
+    observer.observe(banner);
+  } else {
+    runAnimation();
+  }
+})();
+</script>
