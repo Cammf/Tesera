@@ -147,27 +147,43 @@ for (let li = 0; li < word.length; li++) {
   yellowTiles.push([yellowRow, filled[filled.length - 1]]);
 }
 
-// --- Sort by column so animations sweep left → right ---
-blueTiles.sort((a,b) => a[1] - b[1]);
-yellowTiles.sort((a,b) => a[1] - b[1]);
+// --- Remove yellow positions from blue so they don't render as blue first ---
+const yellowSet = new Set(yellowTiles.map(([r,c]) => r+","+c));
+const blueOnly = blueTiles.filter(([r,c]) => !yellowSet.has(r+","+c));
 
-// --- Animate sequence ---
+// --- Group tiles by column for column-at-a-time wave ---
+function groupByCol(arr) {
+  const map = {};
+  arr.forEach(([r,c]) => { (map[c] = map[c] || []).push([r,c]); });
+  return Object.keys(map).sort((a,b) => a - b).map(k => map[k]);
+}
+
+const blueCols = groupByCol(blueOnly);
+const yellowCols = groupByCol(yellowTiles);
+
+// --- Animation 1: blue wave, entire column at once, 30ms between columns ---
 setTimeout(() => {
-  blueTiles.forEach(([r,c],i) => {
+  blueCols.forEach((tiles, ci) => {
     setTimeout(() => {
-      const t = tileAt(r,c);
-      if (t) t.setAttribute("class","tile blue");
-    }, i * 25);
+      tiles.forEach(([r,c]) => {
+        const t = tileAt(r,c);
+        if (t) t.setAttribute("class","tile blue");
+      });
+    }, ci * 30);
   });
 }, 600);
 
-const blueEnd = 600 + blueTiles.length * 25;
+const blueEnd = 600 + blueCols.length * 30;
+
+// --- Animation 2: yellow wave, entire column at once, 30ms between columns ---
 setTimeout(() => {
-  yellowTiles.forEach(([r,c],i) => {
+  yellowCols.forEach((tiles, ci) => {
     setTimeout(() => {
-      const t = tileAt(r,c);
-      if (t) t.setAttribute("class","tile yellow");
-    }, i * 80);
+      tiles.forEach(([r,c]) => {
+        const t = tileAt(r,c);
+        if (t) t.setAttribute("class","tile yellow");
+      });
+    }, ci * 30);
   });
 }, blueEnd + 400);
 </script>
