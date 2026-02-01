@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>TESERA Tile Animation</title>
+<title>TESERA Tile Animation – Compact</title>
 <style>
   body {
     background:#ffffff;
@@ -57,65 +57,44 @@ for (let r = 0; r < rows; r++) {
 
 function tileAt(r,c){ return tileMap[r+","+c]; }
 
-// --- Bitmap font (5 wide × 7 tall) ---
-// Each letter is an array of 7 strings, each 5 chars wide
-// 1 = filled, 0 = empty
+// --- Compact bitmap font (2 wide × 3 tall) ---
+// Each letter uses only 1-2 blocks per row across 3 rows
 const font = {
   T: [
-    "11111",
-    "00100",
-    "00100",
-    "00100",
-    "00100",
-    "00100",
-    "00100",
+    "11",
+    "01",
+    "01",
   ],
   E: [
-    "11111",
-    "10000",
-    "10000",
-    "11110",
-    "10000",
-    "10000",
-    "11111",
+    "11",
+    "10",
+    "11",
   ],
   S: [
-    "11111",
-    "10000",
-    "10000",
-    "11111",
-    "00001",
-    "00001",
-    "11111",
+    "11",
+    "01",
+    "11",
   ],
   R: [
-    "11110",
-    "10001",
-    "10001",
-    "11110",
-    "10100",
-    "10010",
-    "10001",
+    "11",
+    "11",
+    "10",
   ],
   A: [
-    "01110",
-    "10001",
-    "10001",
-    "11111",
-    "10001",
-    "10001",
-    "10001",
+    "11",
+    "11",
+    "10",
   ],
 };
 
 // --- Spell TESERA, centred in the 40×20 grid ---
 const word = "TESERA";
-const letterW = 5;
-const letterH = 7;
+const letterW = 2;
+const letterH = 3;
 const gapBetween = 1; // 1-col gap between letters
-const totalW = word.length * letterW + (word.length - 1) * gapBetween; // 35
-const startCol = Math.floor((cols - totalW) / 2); // 2 or 3
-const startRow = Math.floor((rows - letterH) / 2); // 6 or 7
+const totalW = word.length * letterW + (word.length - 1) * gapBetween; // 17
+const startCol = Math.floor((cols - totalW) / 2);
+const startRow = Math.floor((rows - letterH) / 2);
 
 // Build blue coordinates from bitmaps
 const blueTiles = [];
@@ -131,18 +110,16 @@ for (let li = 0; li < word.length; li++) {
   }
 }
 
-// Two yellow blocks per letter — all on the same row (top row, last two filled tiles)
-const yellowRow = startRow; // top row of every letter
+// Two yellow blocks per letter — all on the same row (top row)
+const yellowRow = startRow;
 const yellowTiles = [];
 for (let li = 0; li < word.length; li++) {
   const letter = font[word[li]];
   const colOff = startCol + li * (letterW + gapBetween);
-  // Find the rightmost two filled cells in the top row
   const filled = [];
   for (let dc = 0; dc < letterW; dc++) {
     if (letter[0][dc] === "1") filled.push(colOff + dc);
   }
-  // Take last two
   yellowTiles.push([yellowRow, filled[filled.length - 2]]);
   yellowTiles.push([yellowRow, filled[filled.length - 1]]);
 }
@@ -161,7 +138,7 @@ function groupByCol(arr) {
 const blueCols = groupByCol(blueOnly);
 const yellowCols = groupByCol(yellowTiles);
 
-// --- Animation 1: blue wave, entire column at once, 30ms between columns ---
+// --- Animation 1: blue wave, entire column at once, 80ms between columns ---
 setTimeout(() => {
   blueCols.forEach((tiles, ci) => {
     setTimeout(() => {
