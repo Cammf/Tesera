@@ -147,6 +147,10 @@ for (let li = 0; li < word.length; li++) {
   yellowTiles.push([yellowRow, filled[filled.length - 1]]);
 }
 
+// --- Sort by column so animations sweep left → right ---
+blueTiles.sort((a,b) => a[1] - b[1]);
+yellowTiles.sort((a,b) => a[1] - b[1]);
+
 // --- Animate sequence ---
 setTimeout(() => {
   blueTiles.forEach(([r,c],i) => {
@@ -159,9 +163,11 @@ setTimeout(() => {
 
 const blueEnd = 600 + blueTiles.length * 25;
 setTimeout(() => {
-  yellowTiles.forEach(([r,c]) => {
-    const t = tileAt(r,c);
-    if (t) t.setAttribute("class","tile yellow");
+  yellowTiles.forEach(([r,c],i) => {
+    setTimeout(() => {
+      const t = tileAt(r,c);
+      if (t) t.setAttribute("class","tile yellow");
+    }, i * 80);
   });
 }, blueEnd + 400);
 </script>
