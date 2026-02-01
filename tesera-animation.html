@@ -10,6 +10,7 @@
     justify-content:center;
     align-items:center;
     height:100vh;
+    margin:0;
   }
 
   svg { width: 900px; }
@@ -27,13 +28,13 @@
 </head>
 <body>
 
-<svg viewBox="0 0 840 340">
+<svg viewBox="0 0 874 434">
   <g id="grid"></g>
 </svg>
 
 <script>
-const cols = 42;
-const rows = 17;
+const cols = 40;
+const rows = 20;
 const size = 16;
 const gap = 6;
 
@@ -59,45 +60,86 @@ function tileAt(r,c){
   return tiles.find(t => t.r === r && t.c === c)?.rect;
 }
 
-// --- TESERA Version A coordinates (subset) ---
-const blueA = [
-  // T
-  [7,2],[7,3],[7,4],[7,5],[7,6],[8,4],[9,4],[10,4],[11,4],
-  // E
-  [7,8],[7,9],[7,10],[7,11],[9,8],[10,8],[11,8],[9,9],[11,9],[11,10],
-  // S
-  [7,13],[7,14],[7,15],[7,16],[9,13],[11,16],[11,15],[11,14],[11,13],
-  // E
-  [7,18],[7,19],[7,20],[7,21],[9,18],[10,18],[11,18],[9,19],[11,19],
-  // R
-  [7,23],[7,24],[7,25],[7,26],[8,23],[9,23],[10,23],[9,24],[10,25],[11,26],
-  // A
-  [7,29],[7,30],[7,31],[8,28],[9,28],[10,28],[11,28],[8,32],[9,32],[10,32],[11,32]
+// --- Letter definitions (5 wide x 7 tall, centred vertically) ---
+// Grid is 20 rows; letters are 7 tall → start row = (20-7)/2 = 6 (row 6-12)
+// Grid is 40 cols; 6 letters × 5 wide + 5 gaps × 1 = 35 → start col = (40-35)/2 ≈ 3
+const tr = 7; // top row of letters
+
+// Column offsets for each letter (5 wide + 1 gap = 6 apart)
+const tC=3, eC=9, sC=15, e2C=21, rC=27, aC=33;
+
+const blue = [
+  // T — top bar + stem
+  [tr,tC],[tr,tC+1],[tr,tC+2],[tr,tC+3],[tr,tC+4],
+  [tr+1,tC+2],[tr+2,tC+2],[tr+3,tC+2],[tr+4,tC+2],[tr+5,tC+2],[tr+6,tC+2],
+
+  // E — left spine + three bars
+  [tr,eC],[tr,eC+1],[tr,eC+2],[tr,eC+3],[tr,eC+4],
+  [tr+1,eC],[tr+2,eC],
+  [tr+3,eC],[tr+3,eC+1],[tr+3,eC+2],[tr+3,eC+3],
+  [tr+4,eC],[tr+5,eC],
+  [tr+6,eC],[tr+6,eC+1],[tr+6,eC+2],[tr+6,eC+3],[tr+6,eC+4],
+
+  // S — top bar, left, middle bar, right, bottom bar
+  [tr,sC],[tr,sC+1],[tr,sC+2],[tr,sC+3],[tr,sC+4],
+  [tr+1,sC],[tr+2,sC],
+  [tr+3,sC],[tr+3,sC+1],[tr+3,sC+2],[tr+3,sC+3],[tr+3,sC+4],
+  [tr+4,sC+4],[tr+5,sC+4],
+  [tr+6,sC],[tr+6,sC+1],[tr+6,sC+2],[tr+6,sC+3],[tr+6,sC+4],
+
+  // E2
+  [tr,e2C],[tr,e2C+1],[tr,e2C+2],[tr,e2C+3],[tr,e2C+4],
+  [tr+1,e2C],[tr+2,e2C],
+  [tr+3,e2C],[tr+3,e2C+1],[tr+3,e2C+2],[tr+3,e2C+3],
+  [tr+4,e2C],[tr+5,e2C],
+  [tr+6,e2C],[tr+6,e2C+1],[tr+6,e2C+2],[tr+6,e2C+3],[tr+6,e2C+4],
+
+  // R — left spine, top loop, middle bar, diagonal leg
+  [tr,rC],[tr,rC+1],[tr,rC+2],[tr,rC+3],
+  [tr+1,rC],[tr+1,rC+4],
+  [tr+2,rC],[tr+2,rC+4],
+  [tr+3,rC],[tr+3,rC+1],[tr+3,rC+2],[tr+3,rC+3],
+  [tr+4,rC],[tr+4,rC+2],
+  [tr+5,rC],[tr+5,rC+3],
+  [tr+6,rC],[tr+6,rC+4],
+
+  // A — peak, sides, middle bar
+  [tr,aC+1],[tr,aC+2],[tr,aC+3],
+  [tr+1,aC],[tr+1,aC+4],
+  [tr+2,aC],[tr+2,aC+4],
+  [tr+3,aC],[tr+3,aC+1],[tr+3,aC+2],[tr+3,aC+3],[tr+3,aC+4],
+  [tr+4,aC],[tr+4,aC+4],
+  [tr+5,aC],[tr+5,aC+4],
+  [tr+6,aC],[tr+6,aC+4],
 ];
 
-const yellow = [
-  [7,6],[7,11],[7,15],[7,21],[7,26],[7,31]
+// Two yellow blocks per letter, all at the same row (top row of each letter)
+const yellowRow = tr;
+const yellowTiles = [
+  [yellowRow, tC+3],  [yellowRow, tC+4],   // T
+  [yellowRow, eC+3],  [yellowRow, eC+4],   // E
+  [yellowRow, sC+3],  [yellowRow, sC+4],   // S
+  [yellowRow, e2C+3], [yellowRow, e2C+4],  // E2
+  [yellowRow, rC+2],  [yellowRow, rC+3],   // R
+  [yellowRow, aC+2],  [yellowRow, aC+3],   // A
 ];
 
 // --- Animate sequence ---
 setTimeout(() => {
-  blueA.forEach(([r,c],i)=>{
-    setTimeout(()=>tileAt(r,c)?.classList.replace("g1","blue"), i*30);
+  blue.forEach(([r,c],i)=>{
+    setTimeout(()=>{
+      const t = tileAt(r,c);
+      if(t){ t.setAttribute("class","tile blue"); }
+    }, i*30);
   });
 }, 600);
 
 setTimeout(() => {
-  yellow.forEach(([r,c])=>{
-    tileAt(r,c)?.classList.replace("blue","yellow");
+  yellowTiles.forEach(([r,c])=>{
+    const t = tileAt(r,c);
+    if(t){ t.setAttribute("class","tile yellow"); }
   });
-}, 1400);
-
-// Version B expansion
-setTimeout(() => {
-  blueA.forEach(([r,c])=>{
-    tileAt(r,c+1)?.classList.replace("g1","blue");
-  });
-}, 2000);
+}, 600 + blue.length*30 + 400);
 </script>
 
 </body>
