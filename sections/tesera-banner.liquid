@@ -54,25 +54,25 @@
 </style>
 
 <div class="tesera-banner" id="tesera-banner-{{ section.id }}">
-  <svg viewBox="0 0 874 434">
+  <svg viewBox="0 0 852 324">
     <g id="tesera-grid-{{ section.id }}"></g>
   </svg>
 </div>
 
 <script>
 (function(){
-  const sectionId = "{{ section.id }}";
-  const cols = 40;
-  const rows = 20;
-  const size = 16;
-  const gap = 6;
+  var sectionId = "{{ section.id }}";
+  var cols = 39;
+  var rows = 15;
+  var size = 16;
+  var gap = 6;
 
-  const grid = document.getElementById("tesera-grid-" + sectionId);
+  var grid = document.getElementById("tesera-grid-" + sectionId);
 
-  const tileMap = {};
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
+  var tileMap = {};
+  for (var r = 0; r < rows; r++) {
+    for (var c = 0; c < cols; c++) {
+      var rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
       rect.setAttribute("x", c * (size + gap));
       rect.setAttribute("y", r * (size + gap));
       rect.setAttribute("width", size);
@@ -85,7 +85,7 @@
 
   function tileAt(r,c){ return tileMap[r+","+c]; }
 
-  const font = {
+  var font = {
     T: ["11111","00100","00100","00100","00100","00100","00100"],
     E: ["11111","10000","10000","11110","10000","10000","11111"],
     S: ["11111","10000","10000","11111","00001","00001","11111"],
@@ -93,20 +93,20 @@
     A: ["01110","10001","10001","11111","10001","10001","10001"],
   };
 
-  const word = "TESERA";
-  const letterW = 5;
-  const letterH = 7;
-  const gapBetween = 1;
-  const totalW = word.length * letterW + (word.length - 1) * gapBetween;
-  const startCol = Math.floor((cols - totalW) / 2);
-  const startRow = Math.floor((rows - letterH) / 2);
+  var word = "TESERA";
+  var letterW = 5;
+  var letterH = 7;
+  var gapBetween = 1;
+  var totalW = word.length * letterW + (word.length - 1) * gapBetween;
+  var startCol = Math.floor((cols - totalW) / 2);
+  var startRow = Math.floor((rows - letterH) / 2);
 
-  const blueTiles = [];
-  for (let li = 0; li < word.length; li++) {
-    const letter = font[word[li]];
-    const colOff = startCol + li * (letterW + gapBetween);
-    for (let dr = 0; dr < letterH; dr++) {
-      for (let dc = 0; dc < letterW; dc++) {
+  var blueTiles = [];
+  for (var li = 0; li < word.length; li++) {
+    var letter = font[word[li]];
+    var colOff = startCol + li * (letterW + gapBetween);
+    for (var dr = 0; dr < letterH; dr++) {
+      for (var dc = 0; dc < letterW; dc++) {
         if (letter[dr][dc] === "1") {
           blueTiles.push([startRow + dr, colOff + dc]);
         }
@@ -114,34 +114,34 @@
     }
   }
 
-  const yellowRow = startRow;
-  const yellowTiles = [];
-  for (let li = 0; li < word.length; li++) {
-    const letter = font[word[li]];
-    const colOff = startCol + li * (letterW + gapBetween);
-    const filled = [];
-    for (let dc = 0; dc < letterW; dc++) {
-      if (letter[0][dc] === "1") filled.push(colOff + dc);
+  var yellowRow = startRow;
+  var yellowTiles = [];
+  for (var li2 = 0; li2 < word.length; li2++) {
+    var letter2 = font[word[li2]];
+    var colOff2 = startCol + li2 * (letterW + gapBetween);
+    var filled = [];
+    for (var dc2 = 0; dc2 < letterW; dc2++) {
+      if (letter2[0][dc2] === "1") filled.push(colOff2 + dc2);
     }
     yellowTiles.push([yellowRow, filled[filled.length - 2]]);
     yellowTiles.push([yellowRow, filled[filled.length - 1]]);
   }
 
-  const yellowSet = new Set(yellowTiles.map(function(t){ return t[0]+","+t[1]; }));
-  const blueOnly = blueTiles.filter(function(t){ return !yellowSet.has(t[0]+","+t[1]); });
+  var yellowSet = {};
+  yellowTiles.forEach(function(t){ yellowSet[t[0]+","+t[1]] = true; });
+  var blueOnly = blueTiles.filter(function(t){ return !yellowSet[t[0]+","+t[1]]; });
 
   function groupByCol(arr) {
-    const map = {};
+    var map = {};
     arr.forEach(function(t){ (map[t[1]] = map[t[1]] || []).push(t); });
     return Object.keys(map).sort(function(a,b){ return a - b; }).map(function(k){ return map[k]; });
   }
 
-  const blueCols = groupByCol(blueOnly);
-  const yellowCols = groupByCol(yellowTiles);
+  var blueCols = groupByCol(blueOnly);
+  var yellowCols = groupByCol(yellowTiles);
 
-  // Use IntersectionObserver so animation triggers when banner scrolls into view
-  const banner = document.getElementById("tesera-banner-" + sectionId);
-  let animated = false;
+  var banner = document.getElementById("tesera-banner-" + sectionId);
+  var animated = false;
 
   function runAnimation() {
     if (animated) return;
