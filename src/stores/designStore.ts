@@ -1,78 +1,76 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
-import { immer } from 'zustand/middleware/immer';
-import type { CubeData, CellKey } from '../types';
+import type { CubeData } from '../types';
 
 interface DesignState {
-  cubes: Map<CellKey, CubeData>;
+  cubes: Record<string, CubeData>;
   placeCube: (col: number, row: number, color: string) => void;
   removeCube: (col: number, row: number) => void;
   paintCube: (col: number, row: number, color: string) => void;
   fillCells: (cells: { col: number; row: number }[], color: string) => void;
   clearAll: () => void;
-  getCube: (col: number, row: number) => CubeData | undefined;
   getCubesArray: () => CubeData[];
   loadDesign: (cubes: CubeData[]) => void;
+  cubeCount: () => number;
 }
 
-function cellKey(col: number, row: number): CellKey {
+function cellKey(col: number, row: number): string {
   return `${col},${row}`;
 }
 
 export const useDesignStore = create<DesignState>()(
   temporal(
-    immer((set, get) => ({
-      cubes: new Map<CellKey, CubeData>(),
+    (set, get) => ({
+      cubes: {} as Record<string, CubeData>,
 
       placeCube: (col: number, row: number, color: string) =>
         set((state) => {
           const key = cellKey(col, row);
-          state.cubes.set(key, { col, row, color });
+          return { cubes: { ...state.cubes, [key]: { col, row, color } } };
         }),
 
       removeCube: (col: number, row: number) =>
         set((state) => {
-          state.cubes.delete(cellKey(col, row));
+          const key = cellKey(col, row);
+          if (!(key in state.cubes)) return state;
+          const next = { ...state.cubes };
+          delete next[key];
+          return { cubes: next };
         }),
 
       paintCube: (col: number, row: number, color: string) =>
         set((state) => {
           const key = cellKey(col, row);
-          const cube = state.cubes.get(key);
-          if (cube) {
-            cube.color = color;
-          }
+          if (!(key in state.cubes)) return state;
+          return {
+            cubes: { ...state.cubes, [key]: { ...state.cubes[key], color } },
+          };
         }),
 
       fillCells: (cells: { col: number; row: number }[], color: string) =>
         set((state) => {
+          const next = { ...state.cubes };
           for (const { col, row } of cells) {
             const key = cellKey(col, row);
-            state.cubes.set(key, { col, row, color });
+            next[key] = { col, row, color };
           }
+          return { cubes: next };
         }),
 
-      clearAll: () =>
-        set((state) => {
-          state.cubes.clear();
-        }),
+      clearAll: () => set({ cubes: {} }),
 
-      getCube: (col: number, row: number) => {
-        return get().cubes.get(cellKey(col, row));
+      getCubesArray: () => Object.values(get().cubes),
+
+      loadDesign: (cubes: CubeData[]) => {
+        const record: Record<string, CubeData> = {};
+        for (const cube of cubes) {
+          record[cellKey(cube.col, cube.row)] = cube;
+        }
+        set({ cubes: record });
       },
 
-      getCubesArray: () => {
-        return Array.from(get().cubes.values());
-      },
-
-      loadDesign: (cubes: CubeData[]) =>
-        set((state) => {
-          state.cubes.clear();
-          for (const cube of cubes) {
-            state.cubes.set(cellKey(cube.col, cube.row), cube);
-          }
-        }),
-    })),
+      cubeCount: () => Object.keys(get().cubes).length,
+    }),
     { limit: 50 }
   )
 );

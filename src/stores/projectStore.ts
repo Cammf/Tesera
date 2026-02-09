@@ -14,7 +14,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
     name: 'Untitled Design',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    version: 1,
+    version: '0.2.0',
     gridSize: GRID_SIZE,
   },
 

@@ -5,6 +5,7 @@ export interface CubeData {
   col: number;
   row: number;
   color: string; // hex color
+  depth?: number; // optional varying depth in mm
 }
 
 export interface BoardRegion {
@@ -25,25 +26,45 @@ export type Tool =
   | 'shape-rect'
   | 'shape-circle'
   | 'shape-freeform'
+  | 'shape-leaf'
+  | 'shape-crescent'
+  | 'shape-wave'
+  | 'shape-puddle'
   | 'shape-select';
 
 export type ViewMode = 'perspective' | 'front' | 'top';
 
+export type ShapeFamily =
+  | 'rectangle'
+  | 'circle'
+  | 'freeform'
+  | 'leaf'
+  | 'crescent'
+  | 'wave'
+  | 'puddle'
+  | 'imported';
+
 export interface ShapePath {
   id: string;
-  type: 'rectangle' | 'circle' | 'freeform' | 'imported';
+  type: ShapeFamily;
   points: { x: number; y: number }[];
   closed: boolean;
   fill: string;
-  // Paper.js serialized path data
   pathData?: string;
+  // Dimension controls (mm)
+  widthMM?: number;
+  heightMM?: number;
+  lengthMM?: number;
+  // Vector scaling along length
+  scaleStart?: number; // 0-1, scale at start
+  scaleEnd?: number;   // 0-1, scale at end
 }
 
 export interface ProjectMeta {
   name: string;
   createdAt: string;
   updatedAt: string;
-  version: number;
+  version: string;
   gridSize: number; // mm, default 30
 }
 

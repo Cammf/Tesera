@@ -4,6 +4,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { CubeInstances } from './CubeInstances';
 import { GridPlane } from './GridPlane';
 import { SceneLighting } from './SceneLighting';
+import { CameraController } from './CameraController';
 import { GRID_SIZE } from '../../types';
 import * as THREE from 'three';
 
@@ -12,25 +13,11 @@ const ROWS = 30;
 const CENTER_X = (COLS * GRID_SIZE) / 2;
 const CENTER_Y = (ROWS * GRID_SIZE) / 2;
 
-function cameraForView(viewMode: string) {
-  switch (viewMode) {
-    case 'front':
-      return { position: [CENTER_X, CENTER_Y, 800] as [number, number, number] };
-    case 'top':
-      return { position: [CENTER_X, CENTER_Y + 800, 10] as [number, number, number] };
-    case 'perspective':
-    default:
-      return { position: [CENTER_X + 400, CENTER_Y + 300, 600] as [number, number, number] };
-  }
-}
-
 export function Viewport() {
-  const viewMode = useUIStore((s) => s.viewMode);
   const activeTool = useUIStore((s) => s.activeTool);
   const setDragging = useUIStore((s) => s.setDragging);
 
   const isDrawingTool = activeTool === 'place' || activeTool === 'erase' || activeTool === 'paint';
-  const cam = cameraForView(viewMode);
 
   return (
     <div
@@ -40,18 +27,18 @@ export function Viewport() {
     >
       <Canvas
         camera={{
-          position: cam.position,
+          position: [CENTER_X + 400, CENTER_Y + 300, 800],
           fov: 45,
           near: 1,
           far: 10000,
         }}
-        frameloop="demand"
         gl={{ preserveDrawingBuffer: true, antialias: true }}
         onCreated={({ gl }) => {
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.2;
         }}
       >
+        <CameraController />
         <SceneLighting />
         <GridPlane cols={COLS} rows={ROWS} />
         <CubeInstances />
@@ -62,7 +49,6 @@ export function Viewport() {
           enableZoom
           minDistance={100}
           maxDistance={3000}
-          maxPolarAngle={Math.PI / 2}
         />
       </Canvas>
     </div>

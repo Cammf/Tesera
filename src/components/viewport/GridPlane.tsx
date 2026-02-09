@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useUIStore } from '../../stores/uiStore';
@@ -11,12 +11,16 @@ interface GridPlaneProps {
   rows?: number;
 }
 
-/** Interactive grid plane that cubes sit on, also handles click-to-place on empty cells */
+/** Interactive grid plane — handles place, erase, and paint on grid */
 export function GridPlane({ cols = 40, rows = 30 }: GridPlaneProps) {
   const showGrid = useUIStore((s) => s.showGrid);
   const activeTool = useUIStore((s) => s.activeTool);
   const activeColor = useUIStore((s) => s.activeColor);
+  const isDragging = useUIStore((s) => s.isDragging);
+  const setDragging = useUIStore((s) => s.setDragging);
   const placeCube = useDesignStore((s) => s.placeCube);
+  const removeCube = useDesignStore((s) => s.removeCube);
+  const lastCell = useRef<{ col: number; row: number } | null>(null);
 
   const width = cols * GRID_SIZE;
   const height = rows * GRID_SIZE;
@@ -44,21 +48,55 @@ export function GridPlane({ cols = 40, rows = 30 }: GridPlaneProps) {
     return tex;
   }, [cols, rows]);
 
-  const handleClick = (e: ThreeEvent<MouseEvent>) => {
-    if (activeTool !== 'place') return;
+  const handleGridAction = (col: number, row: number, button: number) => {
+    if (col < 0 || col >= cols || row < 0 || row >= rows) return;
+    if (button === 2) {
+      removeCube(col, row);
+      return;
+    }
+    switch (activeTool) {
+      case 'place':
+        placeCube(col, row, activeColor);
+        break;
+      case 'erase':
+        removeCube(col, row);
+        break;
+    }
+  };
+
+  const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
+    if (activeTool !== 'place' && activeTool !== 'erase') return;
     e.stopPropagation();
     const col = worldToCol(e.point.x);
     const row = worldToRow(e.point.y);
-    if (col >= 0 && col < cols && row >= 0 && row < rows) {
-      placeCube(col, row, activeColor);
+    lastCell.current = { col, row };
+    setDragging(true);
+    handleGridAction(col, row, e.nativeEvent.button);
+  };
+
+  const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
+    if (!isDragging) return;
+    if (activeTool !== 'place' && activeTool !== 'erase') return;
+    e.stopPropagation();
+    const col = worldToCol(e.point.x);
+    const row = worldToRow(e.point.y);
+    if (lastCell.current && (lastCell.current.col !== col || lastCell.current.row !== row)) {
+      handleGridAction(col, row, e.nativeEvent.button);
+      lastCell.current = { col, row };
     }
+  };
+
+  const onPointerUp = () => {
+    setDragging(false);
+    lastCell.current = null;
   };
 
   return (
     <mesh
       position={[width / 2, height / 2, -0.5]}
-      rotation={[0, 0, 0]}
-      onClick={handleClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
       onContextMenu={(e) => e.nativeEvent.preventDefault()}
     >
       <planeGeometry args={[width, height]} />

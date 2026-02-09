@@ -5,10 +5,11 @@ import * as THREE from 'three';
 import { useDesignStore } from '../../stores/designStore';
 import { useUIStore } from '../../stores/uiStore';
 import { colToWorldX, rowToWorldY, worldToCol, worldToRow } from '../../utils/grid';
+import { createBeechWoodTexture, createBeechNormalMap } from '../../utils/woodTexture';
 import { GRID_SIZE, MAX_CUBES, BULLNOSE_RADIUS, BULLNOSE_SEGMENTS } from '../../types';
 
 const dummy = new THREE.Object3D();
-const color = new THREE.Color();
+const tempColor = new THREE.Color();
 
 export function CubeInstances() {
   const meshRef = useRef<THREE.InstancedMesh>(null!);
@@ -22,12 +23,15 @@ export function CubeInstances() {
   const setDragging = useUIStore((s) => s.setDragging);
   const lastCell = useRef<{ col: number; row: number } | null>(null);
 
-  const cubesArray = useMemo(() => Array.from(cubes.values()), [cubes]);
+  const cubesArray = useMemo(() => Object.values(cubes), [cubes]);
 
   const geometry = useMemo(
     () => new RoundedBoxGeometry(GRID_SIZE, GRID_SIZE, GRID_SIZE, BULLNOSE_SEGMENTS, BULLNOSE_RADIUS),
     []
   );
+
+  const woodTexture = useMemo(() => createBeechWoodTexture(), []);
+  const normalMap = useMemo(() => createBeechNormalMap(), []);
 
   // Update instance matrices and colors whenever cubes change
   useEffect(() => {
@@ -42,8 +46,8 @@ export function CubeInstances() {
       );
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
-      color.set(cube.color);
-      mesh.setColorAt(i, color);
+      tempColor.set(cube.color);
+      mesh.setColorAt(i, tempColor);
     });
 
     mesh.count = cubesArray.length;
@@ -53,6 +57,7 @@ export function CubeInstances() {
 
   const handleInteraction = (col: number, row: number, button: number) => {
     if (button === 2) {
+      // Right-click always erases
       removeCube(col, row);
       return;
     }
@@ -96,6 +101,8 @@ export function CubeInstances() {
     lastCell.current = null;
   };
 
+  if (cubesArray.length === 0) return null;
+
   return (
     <instancedMesh
       ref={meshRef}
@@ -106,10 +113,13 @@ export function CubeInstances() {
       onContextMenu={(e) => e.nativeEvent.preventDefault()}
     >
       <meshPhysicalMaterial
+        map={woodTexture}
+        normalMap={normalMap}
+        normalScale={new THREE.Vector2(0.3, 0.3)}
         vertexColors
-        roughness={0.65}
+        roughness={0.6}
         clearcoat={0.3}
-        clearcoatRoughness={0.4}
+        clearcoatRoughness={0.35}
       />
     </instancedMesh>
   );
