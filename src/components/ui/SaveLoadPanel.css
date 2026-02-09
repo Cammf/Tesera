@@ -1,0 +1,44 @@
+.save-load-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+}
+
+.project-name-input {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #eee;
+  padding: 4px 8px;
+  font-size: 13px;
+  width: 200px;
+}
+
+.project-name-input:focus {
+  outline: none;
+  border-color: #4a6fa5;
+}
+
+.save-load-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sl-btn {
+  padding: 4px 12px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #2a2a2a;
+  color: #ccc;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sl-btn:hover {
+  background: #3a3a3a;
+  color: #fff;
+}
