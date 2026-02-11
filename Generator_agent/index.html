@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tesera — Generator Agent (Phase 1)</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #0072CE; --primary-hover: #005ea6;
+  --accent: #FFC325; --accent-hover: #e6af1e;
+  --bg: #2d2d3a; --bg-panel: #23232f; --bg-input: #1e1e2a;
+  --text: #e8e8ec; --text-sec: #9a9ab0;
+  --danger: #e74c3c; --border: #444; --grey-empty: #d0d0d0;
+}
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+  padding: 20px;
+}
+h1 { margin-bottom: 2px; font-size: 1.8rem; letter-spacing: 2px; color: var(--accent); }
+.subtitle { color: var(--text-sec); margin-bottom: 12px; font-size: 0.85rem; text-align: center; }
+.section { width: 100%; max-width: 1200px; margin-bottom: 14px; }
+
+/* Palette bar */
+.palette { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-bottom: 6px; }
+.palette-swatch {
+  width: 42px; height: 42px; border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 0.55rem; font-weight: 700; color: #fff;
+  text-shadow: 0 0 3px rgba(0,0,0,0.8); border: 2px solid transparent; line-height: 1.2;
+}
+.palette-swatch .num { font-size: 0.75rem; }
+.legend { font-size: 0.72rem; color: var(--text-sec); text-align: center; margin-bottom: 8px; }
+
+/* Upload */
+.upload-area {
+  border: 2px dashed var(--border); border-radius: 12px; padding: 30px;
+  text-align: center; cursor: pointer; transition: border-color 0.3s;
+}
+.upload-area:hover, .upload-area.dragover { border-color: var(--primary); }
+.upload-area input { display: none; }
+.upload-area p { font-size: 0.95rem; color: var(--text-sec); }
+
+/* Crop */
+.crop-section { display: none; text-align: center; }
+.crop-section.active { display: block; }
+.crop-container {
+  position: relative; display: inline-block; max-width: 100%; cursor: crosshair;
+  user-select: none; overflow: hidden;
+}
+.crop-container img { display: block; max-width: 460px; max-height: 460px; }
+.crop-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+.crop-box {
+  position: absolute; border: 2px solid var(--accent);
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
+  cursor: move; pointer-events: all;
+}
+.crop-handle {
+  position: absolute; width: 14px; height: 14px; background: var(--accent);
+  border: 2px solid #fff; border-radius: 2px; pointer-events: all;
+}
+.crop-handle.tl { top: -7px; left: -7px; cursor: nw-resize; }
+.crop-handle.tr { top: -7px; right: -7px; cursor: ne-resize; }
+.crop-handle.bl { bottom: -7px; left: -7px; cursor: sw-resize; }
+.crop-handle.br { bottom: -7px; right: -7px; cursor: se-resize; }
+
+/* Controls */
+.controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center; }
+button {
+  background: var(--primary); color: #fff; border: none;
+  padding: 8px 18px; border-radius: 8px; cursor: pointer;
+  font-size: 0.85rem; transition: background 0.2s;
+}
+button:hover { background: var(--primary-hover); }
+button:disabled { background: #444; cursor: not-allowed; }
+button.accent { background: var(--accent); color: #222; }
+button.accent:hover { background: var(--accent-hover); }
+button.secondary { background: #3a3a4e; }
+button.secondary:hover { background: #4a4a5e; }
+.option-group { display: flex; align-items: center; gap: 6px; }
+.option-group label { font-size: 0.82rem; color: var(--text-sec); }
+select {
+  background: var(--bg-input); color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 10px; font-size: 0.82rem;
+}
+
+/* Output */
+.output-wrap { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start; }
+.panel { text-align: center; }
+.panel h3 { margin-bottom: 6px; font-size: 0.85rem; color: var(--text-sec); }
+#croppedPreview { max-width: 180px; max-height: 180px; border-radius: 6px; display: none; }
+
+/* Fields panel */
+.fields-panel { display: none; }
+.fields-panel.active { display: block; }
+.fields-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.field-item { text-align: center; }
+.field-item canvas { border-radius: 4px; border: 1px solid var(--border); image-rendering: pixelated; }
+.field-item .field-label { font-size: 0.7rem; color: var(--text-sec); margin-top: 3px; }
+
+/* Grid canvas */
+.grid-wrap { position: relative; display: inline-block; }
+#gridCanvas { border-radius: 4px; }
+
+/* Comparison */
+.comparison-wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: flex-start; }
+.comparison-item { text-align: center; }
+.comparison-item h4 { font-size: 0.78rem; color: var(--text-sec); margin-bottom: 4px; }
+
+/* Counts */
+.block-counts { display: none; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 8px; }
+.block-counts.active { display: flex; }
+.count-chip {
+  padding: 3px 8px; border-radius: 4px; font-size: 0.68rem;
+  font-weight: 600; color: #fff; text-shadow: 0 0 2px rgba(0,0,0,0.6);
+}
+.download-row { display: none; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 10px; }
+.download-row.active { display: flex; }
+.status { font-size: 0.78rem; color: var(--text-sec); min-height: 1.2em; text-align: center; margin: 6px 0; }
+canvas.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<h1>TESERA</h1>
+<p class="subtitle">Generator Agent — Phase 1: Craft + Gradient Fields</p>
+
+<div class="section">
+  <div class="palette" id="paletteDisplay"></div>
+  <p class="legend">10 colours × 20 blocks each = 400 blocks on a 20×20 grid</p>
+</div>
+
+<div class="section">
+  <div class="upload-area" id="dropZone">
+    <p>Click or drag & drop an image here</p>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+</div>
+
+<div class="section crop-section" id="cropSection">
+  <h3 style="color:var(--text-sec);margin-bottom:8px;font-size:0.85rem;">Crop & Scale — drag the box to select region</h3>
+  <div class="crop-container" id="cropContainer">
+    <img id="cropImg" alt="">
+    <div class="crop-overlay">
+      <div class="crop-box" id="cropBox">
+        <div class="crop-handle tl" data-handle="tl"></div>
+        <div class="crop-handle tr" data-handle="tr"></div>
+        <div class="crop-handle bl" data-handle="bl"></div>
+        <div class="crop-handle br" data-handle="br"></div>
+      </div>
+    </div>
+  </div>
+  <br>
+  <button class="accent" id="confirmCrop">Confirm Crop</button>
+</div>
+
+<div class="section controls" id="controlsSection" style="display:none;">
+  <div class="option-group">
+    <label for="ditherMode">Layer 1 Mode:</label>
+    <select id="ditherMode">
+      <option value="floyd">Floyd-Steinberg</option>
+      <option value="atkinson">Atkinson</option>
+      <option value="ordered">Ordered (Bayer)</option>
+      <option value="nearest">Nearest Colour</option>
+      <option value="optimal">Optimal (K-means)</option>
+    </select>
+  </div>
+  <button id="generateOrigBtn" class="secondary">Generate (Layer 1 Only)</button>
+  <button id="generateGradBtn" class="accent">Generate (Gradient-Guided)</button>
+  <button id="compareBtn" class="secondary" style="display:none;">Compare Both</button>
+</div>
+
+<p class="status" id="statusText"></p>
+
+<div class="section">
+  <div class="output-wrap" id="outputWrap">
+    <!-- Source preview -->
+    <div class="panel" id="sourcePanel">
+      <h3>Source (20×20)</h3>
+      <img id="croppedPreview" alt="cropped">
+    </div>
+
+    <!-- Gradient fields -->
+    <div class="panel fields-panel" id="fieldsPanel">
+      <h3>Gradient Fields</h3>
+      <div class="fields-grid">
+        <div class="field-item">
+          <canvas id="fieldLum" width="100" height="100"></canvas>
+          <div class="field-label">Luminance</div>
+        </div>
+        <div class="field-item">
+          <canvas id="fieldWarm" width="100" height="100"></canvas>
+          <div class="field-label">Warmth</div>
+        </div>
+        <div class="field-item">
+          <canvas id="fieldSat" width="100" height="100"></canvas>
+          <div class="field-label">Saturation</div>
+        </div>
+        <div class="field-item">
+          <canvas id="fieldStruct" width="100" height="100"></canvas>
+          <div class="field-label">Structure</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main result -->
+    <div class="panel" id="resultPanel">
+      <h3 id="gridTitle">Block Art</h3>
+      <div class="grid-wrap" id="gridWrap">
+        <canvas id="gridCanvas" width="480" height="480"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Comparison view -->
+<div class="section" id="comparisonSection" style="display:none;">
+  <div class="comparison-wrap">
+    <div class="comparison-item">
+      <h4>Layer 1 Only</h4>
+      <canvas id="compareOrigCanvas" width="480" height="480"></canvas>
+    </div>
+    <div class="comparison-item">
+      <h4>Gradient-Guided (Layer 1 + 2)</h4>
+      <canvas id="compareGradCanvas" width="480" height="480"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="block-counts" id="blockCounts"></div>
+</div>
+
+<div class="section">
+  <div class="download-row" id="downloadRow">
+    <button id="dlArt">Download Art PNG</button>
+    <button id="dlGuide">Download Numbered Guide</button>
+  </div>
+</div>
+
+<canvas id="workCanvas" class="hidden"></canvas>
+<canvas id="exportCanvas" class="hidden"></canvas>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ================================================================
+     LAYER 1: CRAFT PRIMITIVES
+     (Inherited from Block_Art_Generator_0.1.html)
+     ================================================================ */
+
+  const PALETTE = [
+    { name: 'Bright Red',       hex: '#C8102E', num: 1 },
+    { name: 'Dark Blue',        hex: '#00205B', num: 2 },
+    { name: 'Lime Green',       hex: '#84BD00', num: 3 },
+    { name: 'Sunflower Yellow', hex: '#FFC72C', num: 4 },
+    { name: 'Bright Yellow',    hex: '#FEDB00', num: 5 },
+    { name: 'Maroon',           hex: '#6F263D', num: 6 },
+    { name: 'Real Blue',        hex: '#0057B8', num: 7 },
+    { name: 'Cyan-blue',        hex: '#91C8E8', num: 8 },
+    { name: 'Magenta',          hex: '#6B2FA0', num: 9 },
+    { name: 'Red-orange',       hex: '#FC4C02', num: 10 },
+  ];
+  const GRID = 20, TOTAL = 400, PER_COLOUR = 20, BLOCK_PX = 24;
+  const EMPTY = -1, EMPTY_COLOUR = '#d0d0d0';
+
+  function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+  const palRgb = PALETTE.map(p => hexToRgb(p.hex));
+
+  // Perceptual colour distance (weighted Euclidean, redmean approximation)
+  function colourDist(a, b) {
+    const dr = a[0] - b[0], dg = a[1] - b[1], db = a[2] - b[2];
+    return (2 + (a[0] + b[0]) / 512) * dr * dr + 4 * dg * dg + (2 + (767 - a[0] - b[0]) / 512) * db * db;
+  }
+
+  function nearestIdx(rgb) {
+    let best = 0, bestD = Infinity;
+    for (let i = 0; i < 10; i++) {
+      const d = colourDist(rgb, palRgb[i]);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+  }
+
+  function luminance(r, g, b) { return 0.299 * r + 0.587 * g + 0.114 * b; }
+  function clamp(v) { return Math.max(0, Math.min(255, v)); }
+
+  // Pre-compute palette properties for Layer 2
+  const palProps = palRgb.map(rgb => {
+    const maxC = Math.max(rgb[0], rgb[1], rgb[2]) / 255;
+    const minC = Math.min(rgb[0], rgb[1], rgb[2]) / 255;
+    const l = (maxC + minC) / 2;
+    let sat = 0;
+    if (maxC !== minC) sat = l > 0.5 ? (maxC - minC) / (2 - maxC - minC) : (maxC - minC) / (maxC + minC);
+    return {
+      luminance: luminance(rgb[0], rgb[1], rgb[2]) / 255,
+      warmth: (rgb[0] - rgb[2] + 255) / 510,
+      saturation: sat,
+    };
+  });
+
+  /* ---- Dithering algorithms (Layer 1) ---- */
+
+  function makeBuf(pixels) {
+    const buf = [];
+    for (let i = 0; i < TOTAL; i++) buf.push([pixels[i * 4], pixels[i * 4 + 1], pixels[i * 4 + 2]]);
+    return buf;
+  }
+
+  function ditherFloydSteinberg(buf) {
+    const a = new Int32Array(TOTAL);
+    for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
+      const idx = y * GRID + x, old = buf[idx];
+      const ci = nearestIdx([clamp(old[0]), clamp(old[1]), clamp(old[2])]);
+      a[idx] = ci;
+      const nw = palRgb[ci], er = [old[0] - nw[0], old[1] - nw[1], old[2] - nw[2]];
+      const sp = (dx, dy, f) => {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID) {
+          const ni = ny * GRID + nx;
+          buf[ni][0] += er[0] * f; buf[ni][1] += er[1] * f; buf[ni][2] += er[2] * f;
+        }
+      };
+      sp(1, 0, 7 / 16); sp(-1, 1, 3 / 16); sp(0, 1, 5 / 16); sp(1, 1, 1 / 16);
+    }
+    return a;
+  }
+
+  function ditherAtkinson(buf) {
+    const a = new Int32Array(TOTAL);
+    for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
+      const idx = y * GRID + x, old = buf[idx];
+      const ci = nearestIdx([clamp(old[0]), clamp(old[1]), clamp(old[2])]);
+      a[idx] = ci;
+      const nw = palRgb[ci], er = [old[0] - nw[0], old[1] - nw[1], old[2] - nw[2]];
+      const sp = (dx, dy) => {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID) {
+          const ni = ny * GRID + nx;
+          buf[ni][0] += er[0] / 8; buf[ni][1] += er[1] / 8; buf[ni][2] += er[2] / 8;
+        }
+      };
+      sp(1, 0); sp(2, 0); sp(-1, 1); sp(0, 1); sp(1, 1); sp(0, 2);
+    }
+    return a;
+  }
+
+  function ditherOrdered(buf) {
+    const bayer = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+    const a = new Int32Array(TOTAL);
+    for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
+      const idx = y * GRID + x, t = (bayer[y % 4][x % 4] / 16 - 0.5) * 64;
+      a[idx] = nearestIdx([clamp(buf[idx][0] + t), clamp(buf[idx][1] + t), clamp(buf[idx][2] + t)]);
+    }
+    return a;
+  }
+
+  function ditherNearest(buf) {
+    const a = new Int32Array(TOTAL);
+    for (let i = 0; i < TOTAL; i++) a[i] = nearestIdx(buf[i]);
+    return a;
+  }
+
+  function ditherOptimal(buf) {
+    const costs = new Float64Array(TOTAL * 10);
+    for (let i = 0; i < TOTAL; i++) for (let c = 0; c < 10; c++) costs[i * 10 + c] = colourDist(buf[i], palRgb[c]);
+    const a = new Int32Array(TOTAL);
+    for (let i = 0; i < TOTAL; i++) {
+      let b = 0, bd = Infinity;
+      for (let c = 0; c < 10; c++) { if (costs[i * 10 + c] < bd) { bd = costs[i * 10 + c]; b = c; } }
+      a[i] = b;
+    }
+    balanceAssignment(a, costs, null);
+    // Swap optimisation
+    for (let round = 0; round < 200; round++) {
+      let imp = false;
+      for (let i = 0; i < TOTAL; i++) for (let j = i + 1; j < TOTAL; j++) {
+        if (a[i] === a[j]) continue;
+        const ci = a[i], cj = a[j];
+        if (costs[i * 10 + cj] + costs[j * 10 + ci] < costs[i * 10 + ci] + costs[j * 10 + cj] - 0.01) {
+          a[i] = cj; a[j] = ci; imp = true;
+        }
+      }
+      if (!imp) break;
+    }
+    return a;
+  }
+
+  /* ---- Saliency (Layer 1) ---- */
+
+  function computeSaliency(pixels) {
+    const grey = new Float32Array(TOTAL);
+    for (let i = 0; i < TOTAL; i++) grey[i] = luminance(pixels[i * 4], pixels[i * 4 + 1], pixels[i * 4 + 2]);
+    const sal = new Float32Array(TOTAL);
+    for (let y = 1; y < GRID - 1; y++) for (let x = 1; x < GRID - 1; x++) {
+      const g = (r, c) => grey[r * GRID + c];
+      const gx = -g(y - 1, x - 1) + g(y - 1, x + 1) - 2 * g(y, x - 1) + 2 * g(y, x + 1) - g(y + 1, x - 1) + g(y + 1, x + 1);
+      const gy2 = -g(y - 1, x - 1) - 2 * g(y - 1, x) - g(y - 1, x + 1) + g(y + 1, x - 1) + 2 * g(y + 1, x) + g(y + 1, x + 1);
+      sal[y * GRID + x] = Math.sqrt(gx * gx + gy2 * gy2);
+    }
+    let mx = 0;
+    for (let i = 0; i < TOTAL; i++) if (sal[i] > mx) mx = sal[i];
+    if (mx > 0) for (let i = 0; i < TOTAL; i++) sal[i] /= mx;
+    return sal;
+  }
+
+  /* ---- Balance (Layer 1) ---- */
+
+  function balanceAssignment(a, costMatrix, sal) {
+    const count = new Int32Array(10);
+    for (let i = 0; i < TOTAL; i++) if (a[i] >= 0) count[a[i]]++;
+    for (let iter = 0; iter < 500; iter++) {
+      let ok = true;
+      for (let c = 0; c < 10; c++) if (count[c] !== PER_COLOUR) { ok = false; break; }
+      if (ok) break;
+      let overC = -1, underC = -1, wo = 0, wu = 0;
+      for (let c = 0; c < 10; c++) {
+        if (count[c] > PER_COLOUR && count[c] - PER_COLOUR > wo) { wo = count[c] - PER_COLOUR; overC = c; }
+        if (count[c] < PER_COLOUR && PER_COLOUR - count[c] > wu) { wu = PER_COLOUR - count[c]; underC = c; }
+      }
+      if (overC === -1 || underC === -1) break;
+      let bestP = -1, bestCost = Infinity;
+      for (let i = 0; i < TOTAL; i++) {
+        if (a[i] !== overC) continue;
+        const w = sal ? (1 + sal[i] * 4) : 1;
+        let cn, cw;
+        if (costMatrix) { cn = costMatrix[i * 10 + overC]; cw = costMatrix[i * 10 + underC]; }
+        else { cn = 0; cw = 0; }
+        const d = (cw - cn) * w;
+        if (d < bestCost) { bestCost = d; bestP = i; }
+      }
+      if (bestP === -1) break;
+      count[overC]--; count[underC]++; a[bestP] = underC;
+    }
+  }
+
+  /* ================================================================
+     LAYER 2: GRADIENT FIELDS
+     ================================================================ */
+
+  // Extract four gradient fields from the 20x20 source pixels
+  function extractFields(pixels) {
+    const lum = new Float32Array(TOTAL);
+    const warm = new Float32Array(TOTAL);
+    const sat = new Float32Array(TOTAL);
+
+    for (let i = 0; i < TOTAL; i++) {
+      const r = pixels[i * 4], g = pixels[i * 4 + 1], b = pixels[i * 4 + 2];
+
+      // Luminance: 0 = black, 1 = white
+      lum[i] = luminance(r, g, b) / 255;
+
+      // Warmth: 0 = cool (blue-dominant), 1 = warm (red-dominant)
+      warm[i] = (r - b + 255) / 510;
+
+      // Saturation (HSL)
+      const maxC = Math.max(r, g, b) / 255, minC = Math.min(r, g, b) / 255;
+      const l = (maxC + minC) / 2;
+      if (maxC === minC) sat[i] = 0;
+      else sat[i] = l > 0.5 ? (maxC - minC) / (2 - maxC - minC) : (maxC - minC) / (maxC + minC);
+    }
+
+    // Structure: enhanced edge detection using both luminance and colour edges
+    const struct = computeStructureField(pixels, lum);
+
+    return { luminance: lum, warmth: warm, saturation: sat, structure: struct };
+  }
+
+  // Structure field: combines luminance edges with colour edges
+  // This detects where important boundaries are — face contours, hat brims, etc.
+  function computeStructureField(pixels, lumField) {
+    const struct = new Float32Array(TOTAL);
+
+    for (let y = 1; y < GRID - 1; y++) for (let x = 1; x < GRID - 1; x++) {
+      const idx = y * GRID + x;
+      // Sobel on luminance
+      const gl = (r, c) => lumField[r * GRID + c];
+      const gx = -gl(y - 1, x - 1) + gl(y - 1, x + 1) - 2 * gl(y, x - 1) + 2 * gl(y, x + 1) - gl(y + 1, x - 1) + gl(y + 1, x + 1);
+      const gy = -gl(y - 1, x - 1) - 2 * gl(y - 1, x) - gl(y - 1, x + 1) + gl(y + 1, x - 1) + 2 * gl(y + 1, x) + gl(y + 1, x + 1);
+      const lumEdge = Math.sqrt(gx * gx + gy * gy);
+
+      // Colour edge: average colour distance to neighbours
+      const px = [pixels[idx * 4], pixels[idx * 4 + 1], pixels[idx * 4 + 2]];
+      let colEdge = 0, nc = 0;
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID) {
+          const ni = ny * GRID + nx;
+          colEdge += Math.sqrt(colourDist(px, [pixels[ni * 4], pixels[ni * 4 + 1], pixels[ni * 4 + 2]]));
+          nc++;
+        }
+      }
+      colEdge /= (nc || 1);
+
+      // Combine: luminance edges + colour edges
+      struct[idx] = lumEdge * 0.5 + colEdge / 400 * 0.5;
+    }
+
+    // Normalise to 0–1
+    let mx = 0;
+    for (let i = 0; i < TOTAL; i++) if (struct[i] > mx) mx = struct[i];
+    if (mx > 0) for (let i = 0; i < TOTAL; i++) struct[i] /= mx;
+
+    return struct;
+  }
+
+  /* ---- Gradient-Guided Assignment (Layer 2) ---- */
+
+  function gradientGuidedAssignment(pixels, fields) {
+    const assigned = new Int32Array(TOTAL);
+
+    // Step 1: Compute affinity matrix — for each cell × palette colour, how good is the match?
+    // Affinity combines colour accuracy (Layer 1) with field consistency (Layer 2)
+    const affinity = new Float64Array(TOTAL * 10);
+
+    for (let i = 0; i < TOTAL; i++) {
+      const px = [pixels[i * 4], pixels[i * 4 + 1], pixels[i * 4 + 2]];
+      const cellLum = fields.luminance[i];
+      const cellWarm = fields.warmth[i];
+      const cellStruct = fields.structure[i];
+
+      for (let c = 0; c < 10; c++) {
+        // Colour distance (lower = better match, invert to affinity)
+        const cd = colourDist(px, palRgb[c]);
+        const colorScore = 1 / (1 + cd / 10000);
+
+        // Luminance field agreement
+        const lumScore = 1 - Math.abs(cellLum - palProps[c].luminance);
+
+        // Warmth field agreement
+        const warmScore = 1 - Math.abs(cellWarm - palProps[c].warmth);
+
+        // Structure weighting: high-structure cells weight colour accuracy more
+        // low-structure cells allow more field influence
+        const structWeight = 0.6 + cellStruct * 1.4; // range 0.6 to 2.0
+
+        affinity[i * 10 + c] = colorScore * structWeight + lumScore * 0.25 + warmScore * 0.15;
+      }
+    }
+
+    // Step 2: Initial assignment — highest affinity
+    for (let i = 0; i < TOTAL; i++) {
+      let bestC = 0, bestA = -Infinity;
+      for (let c = 0; c < 10; c++) {
+        if (affinity[i * 10 + c] > bestA) { bestA = affinity[i * 10 + c]; bestC = c; }
+      }
+      assigned[i] = bestC;
+    }
+
+    // Step 3: Neighbour coherence refinement
+    // Isolated pixels (no same-colour neighbour) are candidates for smoothing
+    // BUT only in low-structure areas — high-structure = intentional boundary
+    for (let round = 0; round < 8; round++) {
+      let changed = false;
+      for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
+        const idx = y * GRID + x;
+        const currentC = assigned[idx];
+        const cellStruct = fields.structure[idx];
+
+        // Don't smooth high-structure cells — they define edges
+        if (cellStruct > 0.4) continue;
+
+        // Count neighbour colours
+        const nc = new Int32Array(10);
+        let totalN = 0;
+        for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID) {
+            nc[assigned[ny * GRID + nx]]++;
+            totalN++;
+          }
+        }
+
+        // If current colour has no neighbours, consider switching
+        if (nc[currentC] === 0 && totalN > 0) {
+          let bestNeighC = currentC, bestCount = 0;
+          for (let c = 0; c < 10; c++) {
+            if (nc[c] > bestCount) { bestCount = nc[c]; bestNeighC = c; }
+          }
+          if (bestNeighC !== currentC) {
+            // Only switch if affinity doesn't drop too much
+            const currentAff = affinity[idx * 10 + currentC];
+            const newAff = affinity[idx * 10 + bestNeighC];
+            if (newAff > currentAff * 0.65) {
+              assigned[idx] = bestNeighC;
+              changed = true;
+            }
+          }
+        }
+      }
+      if (!changed) break;
+    }
+
+    // Step 4: Structure-preserving balance
+    structureAwareBalance(assigned, affinity, fields.structure);
+
+    // Step 5: Edge-aware swap optimisation
+    edgeAwareSwapOptimisation(assigned, affinity, fields);
+
+    return assigned;
+  }
+
+  /* ---- Structure-Preserving Balance (Layer 2) ---- */
+  // Enforces exactly 20 per colour, but protects high-structure cells from swaps
+
+  function structureAwareBalance(assigned, affinity, structField) {
+    const count = new Int32Array(10);
+    for (let i = 0; i < TOTAL; i++) count[assigned[i]]++;
+
+    for (let iter = 0; iter < 600; iter++) {
+      let ok = true;
+      for (let c = 0; c < 10; c++) if (count[c] !== PER_COLOUR) { ok = false; break; }
+      if (ok) break;
+
+      // Find most over-used and under-used colours
+      let overC = -1, underC = -1, wo = 0, wu = 0;
+      for (let c = 0; c < 10; c++) {
+        if (count[c] > PER_COLOUR && count[c] - PER_COLOUR > wo) { wo = count[c] - PER_COLOUR; overC = c; }
+        if (count[c] < PER_COLOUR && PER_COLOUR - count[c] > wu) { wu = PER_COLOUR - count[c]; underC = c; }
+      }
+      if (overC === -1 || underC === -1) break;
+
+      // Find cheapest cell to reassign: overC → underC
+      // Cost = affinity loss × structure protection multiplier
+      let bestP = -1, bestCost = Infinity;
+      for (let i = 0; i < TOTAL; i++) {
+        if (assigned[i] !== overC) continue;
+        const affinityLoss = affinity[i * 10 + overC] - affinity[i * 10 + underC];
+        // Structure protection: high-structure cells are very expensive to move
+        const protection = 1 + structField[i] * 12;
+        const cost = affinityLoss * protection;
+        if (cost < bestCost) { bestCost = cost; bestP = i; }
+      }
+      if (bestP === -1) break;
+      count[overC]--; count[underC]++;
+      assigned[bestP] = underC;
+    }
+  }
+
+  /* ---- Edge-Aware Swap Optimisation (Layer 2) ---- */
+  // Post-balance refinement: swap pairs of cells if it improves overall quality
+  // Structure-weighted so edges are prioritised
+
+  function edgeAwareSwapOptimisation(assigned, affinity, fields) {
+    for (let round = 0; round < 100; round++) {
+      let improved = false;
+      for (let i = 0; i < TOTAL; i++) {
+        for (let j = i + 1; j < TOTAL; j++) {
+          if (assigned[i] === assigned[j]) continue;
+          const ci = assigned[i], cj = assigned[j];
+
+          // Weighted cost: structure importance amplifies accuracy
+          const wi = 1 + fields.structure[i] * 6;
+          const wj = 1 + fields.structure[j] * 6;
+
+          const costBefore = affinity[i * 10 + ci] * wi + affinity[j * 10 + cj] * wj;
+          const costAfter = affinity[i * 10 + cj] * wi + affinity[j * 10 + ci] * wj;
+
+          // Swap if it improves total weighted affinity
+          if (costAfter > costBefore + 0.01) {
+            assigned[i] = cj; assigned[j] = ci;
+            improved = true;
+          }
+        }
+      }
+      if (!improved) break;
+    }
+  }
+
+  /* ================================================================
+     PIPELINE
+     ================================================================ */
+
+  let loadedImg = null;
+  let cropRect = { x: 0, y: 0, w: 100, h: 100 };
+  let imgDisplayW = 0, imgDisplayH = 0;
+  let originalPixels = null;   // Uint8ClampedArray of 20×20 RGBA
+  let currentFields = null;    // Gradient fields
+  let assigned = null;         // Current result: Int32Array(400)
+  let origAssigned = null;     // Layer 1 result (for comparison)
+  let gradAssigned = null;     // Gradient-guided result (for comparison)
+
+  function processLayerOneOnly() {
+    if (!originalPixels) return;
+    const mode = document.getElementById('ditherMode').value;
+    const buf = makeBuf(originalPixels);
+    let a;
+    switch (mode) {
+      case 'floyd': a = ditherFloydSteinberg(buf); break;
+      case 'atkinson': a = ditherAtkinson(buf); break;
+      case 'ordered': a = ditherOrdered(buf); break;
+      case 'nearest': a = ditherNearest(buf); break;
+      case 'optimal': a = ditherOptimal(buf); break;
+      default: a = ditherFloydSteinberg(buf);
+    }
+    const sal = computeSaliency(originalPixels);
+    if (mode !== 'optimal') balanceAssignment(a, null, sal);
+    return a;
+  }
+
+  function processGradientGuided() {
+    if (!originalPixels) return;
+    // Extract gradient fields
+    currentFields = extractFields(originalPixels);
+    // Run gradient-guided assignment
+    return gradientGuidedAssignment(originalPixels, currentFields);
+  }
+
+  /* ================================================================
+     RENDERING
+     ================================================================ */
+
+  const gridCanvas = document.getElementById('gridCanvas');
+
+  function renderGridToCanvas(canvas, assignedArr) {
+    const size = GRID * BLOCK_PX;
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
+      const ci = assignedArr[y * GRID + x];
+      ctx.fillStyle = (ci >= 0 && ci < 10) ? PALETTE[ci].hex : EMPTY_COLOUR;
+      ctx.fillRect(x * BLOCK_PX, y * BLOCK_PX, BLOCK_PX, BLOCK_PX);
+    }
+  }
+
+  function renderGrid() {
+    if (!assigned) return;
+    renderGridToCanvas(gridCanvas, assigned);
+    updateCounts(assigned);
+  }
+
+  // Render a gradient field as a heatmap on a small canvas
+  function renderField(canvasId, field, colorMap) {
+    const canvas = document.getElementById(canvasId);
+    const scale = 5; // 20×5 = 100px
+    canvas.width = GRID * scale; canvas.height = GRID * scale;
+    const ctx = canvas.getContext('2d');
+    for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
+      const v = field[y * GRID + x];
+      ctx.fillStyle = colorMap(v);
+      ctx.fillRect(x * scale, y * scale, scale, scale);
+    }
+  }
+
+  function renderAllFields(fields) {
+    // Luminance: black → white
+    renderField('fieldLum', fields.luminance, v => {
+      const g = Math.round(v * 255);
+      return `rgb(${g},${g},${g})`;
+    });
+    // Warmth: blue → red
+    renderField('fieldWarm', fields.warmth, v => {
+      const r = Math.round(v * 255), b = Math.round((1 - v) * 255);
+      return `rgb(${r},40,${b})`;
+    });
+    // Saturation: grey → vivid green
+    renderField('fieldSat', fields.saturation, v => {
+      const g = Math.round(80 + v * 175), r = Math.round(80 * (1 - v));
+      return `rgb(${r},${g},${r})`;
+    });
+    // Structure: black → bright yellow (edges glow)
+    renderField('fieldStruct', fields.structure, v => {
+      const r = Math.round(v * 255), g = Math.round(v * 220);
+      return `rgb(${r},${g},0)`;
+    });
+    document.getElementById('fieldsPanel').classList.add('active');
+  }
+
+  function updateCounts(assignedArr) {
+    const count = new Int32Array(10);
+    for (let i = 0; i < TOTAL; i++) if (assignedArr[i] >= 0 && assignedArr[i] < 10) count[assignedArr[i]]++;
+    const el = document.getElementById('blockCounts');
+    el.innerHTML = '';
+    el.classList.add('active');
+    PALETTE.forEach((p, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'count-chip'; chip.style.background = p.hex;
+      chip.textContent = `#${p.num}: ${count[i]}/20`;
+      el.appendChild(chip);
+    });
+  }
+
+  /* ================================================================
+     UI: PALETTE DISPLAY
+     ================================================================ */
+
+  const palDisp = document.getElementById('paletteDisplay');
+  PALETTE.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'palette-swatch'; d.style.background = p.hex;
+    d.innerHTML = `<span class="num">${p.num}</span><span>×20</span>`;
+    d.title = `${p.name} (${p.hex})`; palDisp.appendChild(d);
+  });
+
+  /* ================================================================
+     UI: FILE UPLOAD
+     ================================================================ */
+
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+  function handleFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => { loadedImg = img; showCropTool(img); };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  /* ================================================================
+     UI: CROP TOOL
+     ================================================================ */
+
+  const cropSection = document.getElementById('cropSection');
+  const cropImg = document.getElementById('cropImg');
+  const cropBox = document.getElementById('cropBox');
+  const cropContainer = document.getElementById('cropContainer');
+
+  function showCropTool(img) {
+    cropImg.src = img.src;
+    cropSection.classList.add('active');
+    cropImg.onload = () => {
+      imgDisplayW = cropImg.clientWidth; imgDisplayH = cropImg.clientHeight;
+      const sz = Math.min(imgDisplayW, imgDisplayH) * 0.8;
+      cropRect = { x: (imgDisplayW - sz) / 2, y: (imgDisplayH - sz) / 2, w: sz, h: sz };
+      updateCropBox();
+    };
+    if (cropImg.complete) cropImg.onload();
+  }
+
+  function updateCropBox() {
+    cropBox.style.left = cropRect.x + 'px'; cropBox.style.top = cropRect.y + 'px';
+    cropBox.style.width = cropRect.w + 'px'; cropBox.style.height = cropRect.h + 'px';
+  }
+
+  let dragState = null;
+  cropContainer.addEventListener('mousedown', e => {
+    const handle = e.target.dataset.handle;
+    if (handle) dragState = { type: 'handle', handle, startX: e.clientX, startY: e.clientY, startRect: { ...cropRect } };
+    else if (e.target === cropBox) dragState = { type: 'move', startX: e.clientX, startY: e.clientY, startRect: { ...cropRect } };
+    e.preventDefault();
+  });
+
+  function handleCropMove(cx, cy) {
+    if (!dragState) return;
+    const dx = cx - dragState.startX, dy = cy - dragState.startY, s = dragState.startRect;
+    if (dragState.type === 'move') {
+      cropRect.x = Math.max(0, Math.min(imgDisplayW - s.w, s.x + dx));
+      cropRect.y = Math.max(0, Math.min(imgDisplayH - s.h, s.y + dy));
+    } else {
+      const h = dragState.handle;
+      let nx = s.x, ny = s.y, nw = s.w, nh = s.h;
+      if (h.includes('r')) nw = Math.max(30, s.w + dx); if (h.includes('l')) { nx = s.x + dx; nw = s.w - dx; }
+      if (h.includes('b')) nh = Math.max(30, s.h + dy); if (h.includes('t')) { ny = s.y + dy; nh = s.h - dy; }
+      const side = Math.max(30, Math.min(nw, nh));
+      if (h.includes('l')) nx = s.x + s.w - side; if (h.includes('t')) ny = s.y + s.h - side;
+      cropRect = {
+        x: Math.max(0, nx), y: Math.max(0, ny),
+        w: Math.min(side, imgDisplayW - Math.max(0, nx)),
+        h: Math.min(side, imgDisplayH - Math.max(0, ny))
+      };
+    }
+    updateCropBox();
+  }
+
+  window.addEventListener('mousemove', e => handleCropMove(e.clientX, e.clientY));
+  window.addEventListener('mouseup', () => { dragState = null; });
+  cropContainer.addEventListener('touchstart', e => {
+    const t = e.touches[0], handle = e.target.dataset.handle;
+    if (handle) dragState = { type: 'handle', handle, startX: t.clientX, startY: t.clientY, startRect: { ...cropRect } };
+    else if (e.target === cropBox) dragState = { type: 'move', startX: t.clientX, startY: t.clientY, startRect: { ...cropRect } };
+    e.preventDefault();
+  }, { passive: false });
+  window.addEventListener('touchmove', e => { if (dragState) handleCropMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  window.addEventListener('touchend', () => { dragState = null; });
+
+  /* ================================================================
+     UI: CONFIRM CROP
+     ================================================================ */
+
+  document.getElementById('confirmCrop').addEventListener('click', () => {
+    if (!loadedImg) return;
+    const scaleX = loadedImg.naturalWidth / imgDisplayW;
+    const scaleY = loadedImg.naturalHeight / imgDisplayH;
+    const sx = cropRect.x * scaleX, sy = cropRect.y * scaleY;
+    const sw = cropRect.w * scaleX, sh = cropRect.h * scaleY;
+
+    const workCanvas = document.getElementById('workCanvas');
+    workCanvas.width = GRID; workCanvas.height = GRID;
+    const ctx = workCanvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(loadedImg, sx, sy, sw, sh, 0, 0, GRID, GRID);
+    originalPixels = new Uint8ClampedArray(ctx.getImageData(0, 0, GRID, GRID).data);
+
+    // Show cropped preview
+    const pc = document.createElement('canvas'); pc.width = 200; pc.height = 200;
+    pc.getContext('2d').drawImage(loadedImg, sx, sy, sw, sh, 0, 0, 200, 200);
+    const preview = document.getElementById('croppedPreview');
+    preview.src = pc.toDataURL(); preview.style.display = 'block';
+
+    // Extract and display gradient fields immediately
+    currentFields = extractFields(originalPixels);
+    renderAllFields(currentFields);
+
+    document.getElementById('controlsSection').style.display = 'flex';
+    document.getElementById('statusText').textContent = 'Crop confirmed. Fields extracted. Choose a generation mode.';
+  });
+
+  /* ================================================================
+     UI: GENERATE BUTTONS
+     ================================================================ */
+
+  const statusText = document.getElementById('statusText');
+  const compareBtn = document.getElementById('compareBtn');
+  const downloadRow = document.getElementById('downloadRow');
+  const comparisonSection = document.getElementById('comparisonSection');
+
+  // Layer 1 only
+  document.getElementById('generateOrigBtn').addEventListener('click', () => {
+    if (!originalPixels) return;
+    statusText.textContent = 'Generating (Layer 1 only)...';
+    requestAnimationFrame(() => {
+      origAssigned = processLayerOneOnly();
+      assigned = new Int32Array(origAssigned);
+      renderGrid();
+      document.getElementById('gridTitle').textContent = 'Block Art — Layer 1 Only';
+      downloadRow.classList.add('active');
+      compareBtn.style.display = gradAssigned ? 'inline-block' : 'none';
+      statusText.textContent = 'Layer 1 generation complete.';
+    });
+  });
+
+  // Gradient-guided (Layer 1 + 2)
+  document.getElementById('generateGradBtn').addEventListener('click', () => {
+    if (!originalPixels) return;
+    statusText.textContent = 'Generating (Gradient-Guided)...';
+    requestAnimationFrame(() => {
+      gradAssigned = processGradientGuided();
+      assigned = new Int32Array(gradAssigned);
+      renderGrid();
+      renderAllFields(currentFields);
+      document.getElementById('gridTitle').textContent = 'Block Art — Gradient-Guided';
+      downloadRow.classList.add('active');
+      compareBtn.style.display = origAssigned ? 'inline-block' : 'none';
+      statusText.textContent = 'Gradient-guided generation complete. Structure preserved via field weighting.';
+    });
+  });
+
+  // Compare both
+  compareBtn.addEventListener('click', () => {
+    if (!origAssigned || !gradAssigned) return;
+    comparisonSection.style.display = 'block';
+    renderGridToCanvas(document.getElementById('compareOrigCanvas'), origAssigned);
+    renderGridToCanvas(document.getElementById('compareGradCanvas'), gradAssigned);
+    statusText.textContent = 'Comparison view: Layer 1 vs Gradient-Guided side by side.';
+  });
+
+  /* ================================================================
+     UI: DOWNLOADS
+     ================================================================ */
+
+  const exportCanvas = document.getElementById('exportCanvas');
+
+  document.getElementById('dlArt').addEventListener('click', () => {
+    if (!assigned) return;
+    const BPX = 40;
+    exportCanvas.width = GRID * BPX; exportCanvas.height = GRID * BPX;
+    const ctx = exportCanvas.getContext('2d');
+    for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
+      const ci = assigned[y * GRID + x];
+      ctx.fillStyle = (ci >= 0 && ci < 10) ? PALETTE[ci].hex : EMPTY_COLOUR;
+      ctx.fillRect(x * BPX, y * BPX, BPX, BPX);
+    }
+    dlFile(exportCanvas, 'tesera-agent-art.png');
+  });
+
+  document.getElementById('dlGuide').addEventListener('click', () => {
+    if (!assigned) return;
+    const BPX = 40, legendH = 60;
+    const W = GRID * BPX + (GRID + 1), H = GRID * BPX + (GRID + 1) + legendH;
+    exportCanvas.width = W; exportCanvas.height = H;
+    const ctx = exportCanvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
+      const idx = y * GRID + x, bx = x * BPX + (x + 1), by = y * BPX + (y + 1);
+      const ci = assigned[idx];
+      if (ci >= 0 && ci < 10) {
+        ctx.fillStyle = PALETTE[ci].hex; ctx.fillRect(bx, by, BPX, BPX);
+        const lum = luminance(...palRgb[ci]);
+        ctx.fillStyle = lum > 128 ? '#000' : '#fff';
+        ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(PALETTE[ci].num), bx + BPX / 2, by + BPX / 2);
+      } else {
+        ctx.fillStyle = EMPTY_COLOUR; ctx.fillRect(bx, by, BPX, BPX);
+      }
+    }
+    // Grid lines
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+    for (let i = 0; i <= GRID; i++) {
+      const p = i * BPX + i + 0.5;
+      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, GRID * BPX + (GRID + 1)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(GRID * BPX + (GRID + 1), p); ctx.stroke();
+    }
+    // Legend
+    const legY = GRID * BPX + (GRID + 1) + 10;
+    ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    PALETTE.forEach((p, i) => {
+      const lx = 10 + i * (W / 10);
+      ctx.fillStyle = p.hex; ctx.fillRect(lx, legY, 16, 16);
+      ctx.strokeStyle = '#000'; ctx.strokeRect(lx, legY, 16, 16);
+      ctx.fillStyle = luminance(...palRgb[i]) > 128 ? '#000' : '#fff';
+      ctx.textAlign = 'center'; ctx.fillText(String(p.num), lx + 8, legY + 8);
+      ctx.fillStyle = '#333'; ctx.textAlign = 'left'; ctx.font = '9px sans-serif';
+      ctx.fillText(p.name, lx + 20, legY + 8); ctx.font = 'bold 11px sans-serif';
+    });
+    dlFile(exportCanvas, 'tesera-agent-guide.png');
+  });
+
+  function dlFile(canvas, filename) {
+    const a = document.createElement('a');
+    a.download = filename; a.href = canvas.toDataURL('image/png'); a.click();
+  }
+
+})();
+</script>
+</body>
+</html>
